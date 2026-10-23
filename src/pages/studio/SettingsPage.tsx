@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import {
   AlertTriangle,
-  Database,
   Download,
   Pencil,
   RotateCcw,
@@ -35,6 +34,7 @@ export default function SettingsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteEventOpen, setDeleteEventOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -303,17 +303,15 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-semibold">Clear the entire workspace</p>
                 <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  Deletes all {state.events.length} events and{" "}
-                  <Database className="inline size-3" aria-hidden="true" />{" "}
-                  {recordCount} records from this browser. Export first if you
-                  might want them back.
+                  Deletes all {state.events.length} events and {recordCount} records
+                  from this browser. Export first if you might want them back.
                 </p>
               </div>
               <Button
                 type="button"
                 variant="outline"
                 className="shrink-0 cursor-pointer gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
-                onClick={() => store.clearAllData()}
+                onClick={() => setClearOpen(true)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
                 Clear workspace
@@ -335,6 +333,19 @@ export default function SettingsPage() {
         onConfirm={() => {
           store.deleteEvent(event.id);
           toast.success(`“${event.name}” deleted.`);
+        }}
+      />
+
+      <ConfirmDialog
+        open={clearOpen}
+        onOpenChange={setClearOpen}
+        title="Clear the entire workspace?"
+        description={`All ${state.events.length} events and ${recordCount} planning records will be permanently deleted from this browser. Export the workspace first if you want a backup.`}
+        confirmLabel="Clear workspace"
+        destructive
+        onConfirm={() => {
+          store.clearAllData();
+          toast.success("Workspace cleared.");
         }}
       />
 

@@ -166,7 +166,16 @@ export function AiReviewDialog({
       counts.vendors > 0 ? `${counts.vendors} vendors` : null,
       counts.ideas > 0 ? `${counts.ideas} ideas` : null,
     ].filter(Boolean);
-    toast.success("Applied to your plan", { description: parts.join(", ") + "." });
+    if (parts.length > 0) {
+      toast.success("Applied to your plan", { description: `${parts.join(", ")}.` });
+    } else {
+      toast.info("Nothing new to apply", {
+        description:
+          budgetMode === "merge"
+            ? "Every generated category already exists in your budget."
+            : "The selected sections were empty.",
+      });
+    }
     onApplied();
     onOpenChange(false);
   };

@@ -1,11 +1,11 @@
 {
-  "name": "freebuff.com application",
-  "short_name": "freebuff.com",
-  "description": "freebuff.com application",
+  "name": "Celebré — Multi-Event Planning Studio",
+  "short_name": "Celebré",
+  "description": "Intelligent event planning for weddings, milestone birthdays, anniversaries and community festivals — budgets, run of show, vendors and Gemini-assisted creative direction.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#FAF8F5",
+  "theme_color": "#FAF8F5",
   "icons": [
     {
       "src": "/logo.svg",
