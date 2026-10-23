@@ -1,0 +1,140 @@
+"use node";
+
+import { GoogleGenAI } from "@google/genai";
+import { action } from "./_generated/server";
+import { v } from "convex/values";
+
+/**
+ * Server-side Gemini endpoint.
+ *
+ * The API key never reaches the browser: it lives in this deployment's Convex
+ * environment (`GEMINI_API_KEY`) and is only ever read here. The client calls
+ * `generate` and receives plain JSON text, which it validates with zod before
+ * anything touches application state.
+ */
+
+export type PlanKind = "plan" | "budget" | "timeline" | "vendors" | "ideas";
+
+const DEFAULT_MODEL = "gemini-2.5-flash";
+
+const SYSTEM_INSTRUCTION = `You are the senior event director inside Celebré, a multi-event planning studio used by professional planners and detail-obsessed hosts.
+
+You produce practical, production-ready planning material — not marketing copy. Ground every suggestion in the event context you are given (type, date, location, guest count, budget, stated preferences). Respect the total budget: category allocations must sum to at most the event budget, and every suggested dollar figure must feel realistic for the location and guest count.
+
+Rules:
+- Respond with a single JSON object only. No markdown fences, no commentary, no trailing text.
+- Use the exact field names from the schema in the request.
+- Money is always a plain number in the event's currency (no symbols, no commas).
+- Times are 24-hour "HH:mm".
+- Do not invent real company names. For vendors, describe the category and the ideal profile (e.g. "Farm-to-table caterer"), not a fake business name.
+- Keep every string specific and useful: concrete dish names, concrete cues, concrete timings, concrete questions a planner should ask a vendor.
+- Never include placeholder text such as "TBD", "Lorem ipsum" or "Lorem".
+- Be culturally thoughtful: never stereotype a culture, and only reference traditions that fit the stated preferences.`;
+
+function schemaForKind(kind: PlanKind): string {
+  const budgetLine = `{"name": string, "allocated": number, "rationale": string}`;
+  const timelineLine = `{"title": string, "startTime": "HH:mm", "endTime": "HH:mm", "phase": string, "notes": string}`;
+  const milestoneLine = `{"title": string, "dueDate": "YYYY-MM-DD"}`;
+  const vendorLine = `{"category": string, "profile": string, "why": string, "questions": string[]}`;
+  const ideaLine = `{"kind": "theme"|"decor"|"menu"|"activity"|"palette", "title": string, "description": string, "palette": string[]}`;
+
+  switch (kind) {
+    case "budget":
+      return `Return {"summary": string, "budget": [${budgetLine} x 8-14]} where budget allocations sum to at most the total budget.`;
+    case "timeline":
+      return `Return {"summary": string, "timeline": [${timelineLine} x 12-22], "milestones": [${milestoneLine} x 5-9]} covering both the planning runway and the day-of run of show. Use the event's own date for day-of items; milestone dueDates must be in the past-to-event-date runway.`;
+    case "vendors":
+      return `Return {"summary": string, "vendors": [${vendorLine} x 6-12]} — the categories this event must book, an ideal-supplier profile for each, why it matters for this event, and 3-4 sharp inquiry questions to ask before signing.`;
+    case "ideas":
+      return `Return {"summary": string, "ideas": [${ideaLine} x 6-10]} spanning themes, decor, menus, activities and color palettes. Palette ideas must include 3-6 hex colors in the "palette" array; other kinds may leave it empty. "kind" must be one of theme, decor, menu, activity, palette.`;
+    case "plan":
+      return `Return a complete plan: {"summary": string, "budget": [${budgetLine} x 10-14], "milestones": [${milestoneLine} x 6-9], "timeline": [${timelineLine} x 14-20], "vendors": [${vendorLine} x 8-12], "ideas": [${ideaLine} x 5-8]}. Everything must agree: timeline phases should make sense for this event type, and budget allocations must sum to at most the total budget.`;
+  }
+}
+
+export const generate = action({
+  args: {
+    kind: v.string(),
+    eventName: v.string(),
+    eventType: v.string(),
+    eventDate: v.string(),
+    location: v.string(),
+    guestCount: v.number(),
+    totalBudget: v.number(),
+    currency: v.string(),
+    preferences: v.optional(v.string()),
+    existingCategories: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+  },
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return {
+        ok: false,
+        error:
+          "Gemini is not configured for this workspace. Add a GEMINI_API_KEY to your Convex deployment's environment variables, then try again.",
+      };
+    }
+
+    const kind = (["plan", "budget", "timeline", "vendors", "ideas"] as const).includes(
+      args.kind as PlanKind,
+    )
+      ? (args.kind as PlanKind)
+      : "plan";
+
+    const prompt = [
+      "Event context:",
+      `- Name: ${args.eventName}`,
+      `- Type: ${args.eventType}`,
+      `- Date: ${args.eventDate}`,
+      `- Location: ${args.location || "To be confirmed"}`,
+      `- Guest count: ${args.guestCount}`,
+      `- Total budget: ${args.totalBudget} ${args.currency}`,
+      `- Host preferences: ${args.preferences?.trim() || "None stated"}`,
+      args.existingCategories?.length
+        ? `- Budget categories already in use: ${args.existingCategories.join(", ")}`
+        : null,
+      args.notes?.trim() ? `- Extra direction from the planner: ${args.notes.trim()}` : null,
+      "",
+      `Task: ${schemaForKind(kind)}`,
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n");
+
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || DEFAULT_MODEL,
+        contents: prompt,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          temperature: 0.65,
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const text = response.text?.trim();
+      if (!text) {
+        return {
+          ok: false,
+          error:
+            "Gemini returned an empty response. This can happen when content filters trip — try adjusting your preferences and regenerating.",
+        };
+      }
+      return { ok: true, text };
+    } catch (error) {
+      console.error("[celebre/ai] Gemini request failed", error);
+      return {
+        ok: false,
+        error:
+          error instanceof Error
+            ? `Gemini request failed: ${error.message}`
+            : "Gemini request failed. Please try again.",
+      };
+    }
+  },
+});
