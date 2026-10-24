@@ -121,3 +121,11 @@ export function dueLabel(iso: string): string {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/** Validates a "YYYY-MM-DD" date that is today or in the future (for budget planning). */
+export function isValidBudgetDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const parsed = parseISO(iso);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return true;
+}

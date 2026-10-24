@@ -479,11 +479,80 @@ function clearAllData(): void {
   });
 }
 
+/* ------------------------------------------------------------ new-event wizard */
+
+function mapKindToEventType(
+  kind: import("@/lib/types").NewEventDetails,
+): import("@/lib/types").EventType {
+  if (kind.otherKindLabel.trim().length > 0) return "other";
+  if (kind.name.toLowerCase() === "wedding") return "wedding";
+  if (kind.name.toLowerCase() === "birthday") return "birthday";
+  if (kind.name.toLowerCase() === "community") return "festival";
+  return "other";
+}
+
+/**
+ * Creates a brand-new event from the wizard's confirmed details and, when a
+ * reviewed Gemini plan is present, applies it in one shot so the event opens
+ * already provisioned for planning.
+ */
+export function createEventWithPlan(
+  details: import("@/lib/types").NewEventDetails,
+  choice: import("@/lib/types").NewEventPlanChoice,
+  conversion:
+    | {
+        budget: import("@/lib/types").BudgetCategory[];
+        timeline: import("@/lib/types").TimelineItem[];
+        milestones: import("@/lib/types").Milestone[];
+        vendors: import("@/lib/types").Vendor[];
+        ideas: import("@/lib/types").CreativeIdea[];
+      }
+    | null,
+): import("@/lib/types").EventRecord {
+  const input: import("@/lib/types").EventInput = {
+    name: details.name.trim(),
+    type: mapKindToEventType(details),
+    date: details.date,
+    location: details.location.trim(),
+    guestCount: details.guestCount,
+    currency: details.currency,
+    totalBudget: details.totalBudget,
+    preferences: details.preferences.trim(),
+  };
+
+  const event = createEvent(input);
+
+  if (conversion && choice.mode === "generate") {
+    if (conversion.budget.length > 0) {
+      replaceBudgetCategories(event.id, conversion.budget);
+    }
+    if (conversion.timeline.length > 0) {
+      addTimelineItems(event.id, conversion.timeline.map((item) => ({
+        ...item,
+        day: event.date,
+        owner: item.owner || details.name,
+      })));
+    }
+    if (conversion.milestones.length > 0) {
+      addMilestones(event.id, conversion.milestones);
+    }
+    if (conversion.vendors.length > 0) {
+      addVendors(event.id, conversion.vendors);
+    }
+    if (conversion.ideas.length > 0) {
+      addIdeas(event.id, conversion.ideas);
+    }
+  }
+
+  return event;
+}
+
 /** Public repository surface used by every module. */
 export const store = {
   getState,
   subscribe,
   createEvent,
+  createEventWithPlan,
   updateEvent,
   deleteEvent,
   setActiveEvent,

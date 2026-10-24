@@ -21,9 +21,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/studio/shared";
 import { store } from "@/lib/data/store";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
-import type { EventInput, EventType, EventRecord } from "@/lib/types";
-
-const EVENT_TYPES = Object.keys(EVENT_TYPE_LABELS) as EventType[];
+import type {
+  EventInput,
+  EventType,
+  EventRecord,
+  NewEventDetails,
+} from "@/lib/types";
 
 const CURRENCIES = [
   { code: "USD", label: "USD — US Dollar" },
@@ -37,7 +40,7 @@ const CURRENCIES = [
   { code: "BRL", label: "BRL — Brazilian Real" },
 ];
 
-interface FormState {
+interface EventFormState {
   name: string;
   type: EventType;
   date: string;
@@ -48,12 +51,14 @@ interface FormState {
   preferences: string;
 }
 
-type FormErrors = Partial<Record<keyof FormState, string>>;
+type EventFormErrors = Partial<Record<keyof EventFormState, string>>;
 
-function toForm(event: EventRecord | null): FormState {
+const eventTypeDefaultValue: EventType = "wedding";
+
+function toEventForm(event: EventRecord | null): EventFormState {
   return {
     name: event?.name ?? "",
-    type: event?.type ?? "wedding",
+    type: event?.type ?? eventTypeDefaultValue,
     date: event?.date ?? "",
     location: event?.location ?? "",
     guestCount: event ? String(event.guestCount) : "",
@@ -63,8 +68,8 @@ function toForm(event: EventRecord | null): FormState {
   };
 }
 
-function validate(form: FormState): FormErrors {
-  const errors: FormErrors = {};
+function validateEventForm(form: EventFormState): EventFormErrors {
+  const errors: EventFormErrors = {};
   if (form.name.trim().length < 3) {
     errors.name = "Give the event a name of at least 3 characters.";
   }
@@ -82,6 +87,19 @@ function validate(form: FormState): FormErrors {
   return errors;
 }
 
+function eventFormToInput(form: EventFormState): EventInput {
+  return {
+    name: form.name.trim(),
+    type: form.type,
+    date: form.date,
+    location: form.location.trim(),
+    guestCount: Number(form.guestCount),
+    currency: form.currency,
+    totalBudget: Number(form.totalBudget),
+    preferences: form.preferences.trim(),
+  };
+}
+
 export function EventDialog({
   open,
   onOpenChange,
@@ -89,43 +107,38 @@ export function EventDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When present the dialog edits this event, otherwise it creates one. */
+  /* * When present the dialog edits this event, otherwise it creates one.
+   * Once the New Event wizard exists, pass `wizardOpen` to use it instead of the
+   * short-form dialog for new events, and keep `event` for editing only. */
   event?: EventRecord | null;
+  wizardOpen?: boolean;
+  onWizardOpenChange?: (open: boolean) => void;
 }) {
-  const [form, setForm] = useState<FormState>(() => toForm(event ?? null));
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [form, setForm] = useState<EventFormState>(() => toEventForm(event ?? null));
+  const [errors, setErrors] = useState<EventFormErrors>({});
 
   // Reset the form whenever the dialog opens (derived state, not an effect).
   const [lastOpen, setLastOpen] = useState(open);
   if (open !== lastOpen) {
     setLastOpen(open);
     if (open) {
-      setForm(toForm(event ?? null));
+      setForm(toEventForm(event ?? null));
       setErrors({});
     }
   }
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+  const set = <K extends keyof EventFormState>(key: K, value: EventFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
   const handleSubmit = (submitEvent: React.FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
-    const nextErrors = validate(form);
+    const nextErrors = validateEventForm(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const input: EventInput = {
-      name: form.name.trim(),
-      type: form.type,
-      date: form.date,
-      location: form.location.trim(),
-      guestCount: Number(form.guestCount),
-      currency: form.currency,
-      totalBudget: Number(form.totalBudget),
-      preferences: form.preferences.trim(),
-    };
+    const input = eventFormToInput(form);
 
     if (event) {
       store.updateEvent(event.id, input);
@@ -172,9 +185,9 @@ export function EventDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {EVENT_TYPE_LABELS[type]}
+                  {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
