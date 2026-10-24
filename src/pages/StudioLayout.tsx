@@ -1,9 +1,8 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router";
 import { CalendarClock, Menu, Plus } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { AppSidebar, SidebarContent } from "@/components/studio/AppSidebar";
-import { EventDialog } from "@/components/studio/EventDialog";
 import { NewEventWizard } from "@/components/studio/NewEventWizard";
 import { EmptyState } from "@/components/studio/shared";
 import { Button } from "@/components/ui/button";
@@ -24,23 +23,7 @@ import { useStudioState } from "@/lib/data/store";
 export default function StudioLayout() {
   const { events } = useStudioState();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-
-  // The empty-state action opens the full wizard; the sidebar's "New event"
-  // button opens the existing short-form dialog for quick edits, but the first
-  // creation goes through the wizard so the user can optionally generate a plan.
-  // (The existing EventDialog short-form remains available for editing from Settings.)
-  const openCreate = useCallback(() => {
-    // The empty-state action opens the full wizard; the sidebar's "New event"
-    // button opens the existing short-form dialog for quick edits, but the first
-    // creation goes through the wizard so the user can optionally generate a plan.
-    if (events.length === 0) {
-      setWizardOpen(true);
-    } else {
-      setCreateOpen(true);
-    }
-  }, [events.length]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,15 +73,7 @@ export default function StudioLayout() {
         </main>
       </div>
 
-      <NewEventWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-      />
-      <EventDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        event={null}
-      />
+      <NewEventWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 }

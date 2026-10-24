@@ -13,7 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
-import { EventDialog } from "@/components/studio/EventDialog";
+import { NewEventWizard } from "@/components/studio/NewEventWizard";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -139,7 +139,7 @@ function EventSwitcher({ onNewEvent }: { onNewEvent: () => void }) {
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [newEventOpen, setNewEventOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -163,11 +163,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="space-y-3 px-4 pb-4">
-        <EventSwitcher onNewEvent={() => setEventDialogOpen(true)} />
+        <EventSwitcher onNewEvent={() => setNewEventOpen(true)} />
         <Button
           type="button"
           className="w-full cursor-pointer gap-2"
-          onClick={() => setEventDialogOpen(true)}
+          onClick={() => setNewEventOpen(true)}
         >
           <Plus className="size-4" aria-hidden="true" />
           New event
@@ -234,11 +234,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </Button>
       </div>
 
-      <EventDialog
-        open={eventDialogOpen}
-        onOpenChange={setEventDialogOpen}
-        event={null}
-      />
+      <NewEventWizard open={newEventOpen} onOpenChange={setNewEventOpen} />
     </div>
   );
 }

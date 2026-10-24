@@ -508,10 +508,12 @@ export function createEventWithPlan(
         ideas: import("@/lib/types").CreativeIdea[];
       }
     | null,
+  /** Event type resolved by the wizard from the user's step-1 choice. */
+  type?: import("@/lib/types").EventType,
 ): import("@/lib/types").EventRecord {
   const input: import("@/lib/types").EventInput = {
     name: details.name.trim(),
-    type: mapKindToEventType(details),
+    type: type ?? mapKindToEventType(details),
     date: details.date,
     location: details.location.trim(),
     guestCount: details.guestCount,
@@ -523,24 +525,31 @@ export function createEventWithPlan(
   const event = createEvent(input);
 
   if (conversion && choice.mode === "generate") {
+    // Generated items were produced against the wizard's temporary context
+    // record — re-key every row to the event that was actually created.
+    const retag = <T extends { eventId: string }>(items: T[]): T[] =>
+      items.map((item) => ({ ...item, eventId: event.id }));
     if (conversion.budget.length > 0) {
-      replaceBudgetCategories(event.id, conversion.budget);
+      replaceBudgetCategories(event.id, retag(conversion.budget));
     }
     if (conversion.timeline.length > 0) {
-      addTimelineItems(event.id, conversion.timeline.map((item) => ({
-        ...item,
-        day: event.date,
-        owner: item.owner || details.name,
-      })));
+      addTimelineItems(
+        event.id,
+        retag(conversion.timeline).map((item) => ({
+          ...item,
+          day: event.date,
+          owner: item.owner || details.name,
+        })),
+      );
     }
     if (conversion.milestones.length > 0) {
-      addMilestones(event.id, conversion.milestones);
+      addMilestones(event.id, retag(conversion.milestones));
     }
     if (conversion.vendors.length > 0) {
-      addVendors(event.id, conversion.vendors);
+      addVendors(event.id, retag(conversion.vendors));
     }
     if (conversion.ideas.length > 0) {
-      addIdeas(event.id, conversion.ideas);
+      addIdeas(event.id, retag(conversion.ideas));
     }
   }
 
