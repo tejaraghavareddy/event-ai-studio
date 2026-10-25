@@ -27,9 +27,21 @@ function toFiniteNumber(value: unknown): number {
 }
 
 function toIsoDate(value: unknown): string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? value
-    : "";
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return "";
+  }
+  // Format alone accepts impossible dates like 2026-13-45 — round-trip it
+  // through the Date constructor to confirm it's a real calendar date.
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return "";
+  }
+  return value;
 }
 
 /** Money this vendor is contractually committed to (0 while negotiating). */

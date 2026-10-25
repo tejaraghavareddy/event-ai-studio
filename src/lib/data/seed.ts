@@ -204,18 +204,18 @@ export const DEMO_VENDORS: Vendor[] = [
     { id: "qw5a", text: "PA and power supplied, or do we hire sound separately?", done: true },
     { id: "qw5b", text: "Rain date and overtime terms in the contract", done: false },
   ] },
-  { id: "vn_w6", eventId: "evt_wedding", category: "Other", name: "Velvet Row Bridal", contactName: "Ana Duarte", email: "ana@velvetrow.example", phone: "(415) 555-0155", status: "deposit", quote: 2100, contractValue: 2100, depositAmount: 700, depositPaid: 700, inquiryDate: "2026-06-20", followUpDate: "2026-12-05", notes: "Dress ordered; alterations start February.", checklist: [
+  { id: "vn_w6", eventId: "evt_wedding", category: "Attire", name: "Velvet Row Bridal", contactName: "Ana Duarte", email: "ana@velvetrow.example", phone: "(415) 555-0155", status: "deposit", quote: 2100, contractValue: 2100, depositAmount: 700, depositPaid: 700, inquiryDate: "2026-06-20", followUpDate: "2026-12-05", notes: "Dress ordered; alterations start February.", checklist: [
     { id: "qw6a", text: "Alterations schedule fits the February window", done: false },
   ] },
-  { id: "vn_w7", eventId: "evt_wedding", category: "Other", name: "Ink & Ivory Press", contactName: "Hannah Cho", email: "studio@inkivory.example", phone: "(510) 555-0164", status: "deposit", quote: 620, contractValue: 620, depositAmount: 310, depositPaid: 620, inquiryDate: "2026-06-02", followUpDate: "2026-11-10", notes: "Save-the-dates delivered. Invitations in proofing.", checklist: [
+  { id: "vn_w7", eventId: "evt_wedding", category: "Stationery", name: "Ink & Ivory Press", contactName: "Hannah Cho", email: "studio@inkivory.example", phone: "(510) 555-0164", status: "deposit", quote: 620, contractValue: 620, depositAmount: 310, depositPaid: 620, inquiryDate: "2026-06-02", followUpDate: "2026-11-10", notes: "Save-the-dates delivered. Invitations in proofing.", checklist: [
     { id: "qw7a", text: "Invitation proof sign-off before the print run", done: true },
     { id: "qw7b", text: "Guest addressing and postage handled by the printer?", done: true },
   ] },
-  { id: "vn_w8", eventId: "evt_wedding", category: "Other", name: "Sweet Marrow Bakehouse", contactName: "Elena Petrov", email: "elena@sweetmarrow.example", phone: "(707) 555-0198", status: "quoted", quote: 900, contractValue: 0, depositAmount: 270, depositPaid: 0, inquiryDate: "2026-10-08", followUpDate: "2026-11-01", notes: "Quote includes olive-oil smash cake and gluten-free tier.", checklist: [
+  { id: "vn_w8", eventId: "evt_wedding", category: "Cake", name: "Sweet Marrow Bakehouse", contactName: "Elena Petrov", email: "elena@sweetmarrow.example", phone: "(707) 555-0198", status: "quoted", quote: 900, contractValue: 0, depositAmount: 270, depositPaid: 0, inquiryDate: "2026-10-08", followUpDate: "2026-11-01", notes: "Quote includes olive-oil smash cake and gluten-free tier.", checklist: [
     { id: "qw8a", text: "Delivery window and on-site cutting service?", done: false },
     { id: "qw8b", text: "Gluten-free tier prepared in a separate kitchen?", done: false },
   ] },
-  { id: "vn_w9", eventId: "evt_wedding", category: "Other", name: "Rev. Daniel Okafor", contactName: "Daniel Okafor", email: "daniel@okafor.example", phone: "(707) 555-0107", status: "contracted", quote: 700, contractValue: 700, depositAmount: 350, depositPaid: 250, inquiryDate: "2026-08-19", followUpDate: "2026-12-15", notes: "Vow workshop scheduled for January.", checklist: [
+  { id: "vn_w9", eventId: "evt_wedding", category: "Officiant", name: "Rev. Daniel Okafor", contactName: "Daniel Okafor", email: "daniel@okafor.example", phone: "(707) 555-0107", status: "contracted", quote: 700, contractValue: 700, depositAmount: 350, depositPaid: 250, inquiryDate: "2026-08-19", followUpDate: "2026-12-15", notes: "Vow workshop scheduled for January.", checklist: [
     { id: "qw9a", text: "Ceremony script reviewed and approved by both families", done: false },
   ] },
 
@@ -229,7 +229,7 @@ export const DEMO_VENDORS: Vendor[] = [
     { id: "qb2a", text: "Halal and alcohol-free options confirmed for every station", done: true },
     { id: "qb2b", text: "Setup and breakdown windows included in the quote", done: false },
   ] },
-  { id: "vn_b3", eventId: "evt_birthday", category: "Sound", name: "Nour & Sound", contactName: "Nour Khalil", email: "nour@noursound.example", phone: "(312) 555-0149", status: "contracted", quote: 1800, contractValue: 1800, depositAmount: 900, depositPaid: 600, inquiryDate: "2026-09-20", followUpDate: "2026-12-01", notes: "Oud 9–10pm; DJ Rami takes over at 10pm.", checklist: [
+  { id: "vn_b3", eventId: "evt_birthday", category: "Entertainment", name: "Nour & Sound", contactName: "Nour Khalil", email: "nour@noursound.example", phone: "(312) 555-0149", status: "contracted", quote: 1800, contractValue: 1800, depositAmount: 900, depositPaid: 600, inquiryDate: "2026-09-20", followUpDate: "2026-12-01", notes: "Oud 9–10pm; DJ Rami takes over at 10pm.", checklist: [
     { id: "qb3a", text: "Who supplies the PA and who runs soundcheck?", done: false },
     { id: "qb3b", text: "Changeover time between the oud set and the DJ", done: false },
   ] },
@@ -253,7 +253,7 @@ export const DEMO_VENDORS: Vendor[] = [
     { id: "qf2b", text: "Public liability insurance certificate on file", done: false },
     { id: "qf2c", text: "Noise monitoring plan for the 19:00 curfew", done: false },
   ] },
-  { id: "vn_f3", eventId: "evt_festival", category: "Other", name: "Cascade Rentals", contactName: "Marta Silva", email: "marta@cascaderentals.example", phone: "(503) 555-0121", status: "contracted", quote: 3600, contractValue: 3600, depositAmount: 1800, depositPaid: 1080, inquiryDate: "2026-09-05", followUpDate: "2026-11-06", notes: "2× 20×40 tents, fencing, 30 tables, ADA pathways.", checklist: [
+  { id: "vn_f3", eventId: "evt_festival", category: "Rentals", name: "Cascade Rentals", contactName: "Marta Silva", email: "marta@cascaderentals.example", phone: "(503) 555-0121", status: "contracted", quote: 3600, contractValue: 3600, depositAmount: 1800, depositPaid: 1080, inquiryDate: "2026-09-05", followUpDate: "2026-11-06", notes: "2× 20×40 tents, fencing, 30 tables, ADA pathways.", checklist: [
     { id: "qf3a", text: "Anchoring method — stakes or ballast on the lawn?", done: true },
     { id: "qf3b", text: "Delivery window before gates open at 11:00", done: false },
     { id: "qf3c", text: "Rain contingency and emergency breakdown crew", done: false },
@@ -262,11 +262,11 @@ export const DEMO_VENDORS: Vendor[] = [
     { id: "qf4a", text: "Are rider and hospitality costs inside the quoted fee?", done: false },
     { id: "qf4b", text: "Technical rider received for both stages?", done: false },
   ] },
-  { id: "vn_f5", eventId: "evt_festival", category: "Other", name: "Rose City Safety", contactName: "Andre Wells", email: "andre@rosecitysafety.example", phone: "(503) 555-0143", status: "inquiry", quote: 1800, contractValue: 0, depositAmount: 0, depositPaid: 0, inquiryDate: "2026-10-14", followUpDate: "2026-10-26", notes: "2 licensed guards, 10-hour block. Requesting certificates.", checklist: [
+  { id: "vn_f5", eventId: "evt_festival", category: "Security", name: "Rose City Safety", contactName: "Andre Wells", email: "andre@rosecitysafety.example", phone: "(503) 555-0143", status: "inquiry", quote: 1800, contractValue: 0, depositAmount: 0, depositPaid: 0, inquiryDate: "2026-10-14", followUpDate: "2026-10-26", notes: "2 licensed guards, 10-hour block. Requesting certificates.", checklist: [
     { id: "qf5a", text: "Insurance and licensing certificates before booking", done: false },
     { id: "qf5b", text: "Safety and evacuation plan for 2,000 attendees", done: false },
   ] },
-  { id: "vn_f6", eventId: "evt_festival", category: "Community sponsors", name: "Green Loop Waste", contactName: "Priya Raman", email: "priya@greenloop.example", phone: "(503) 555-0166", status: "prospect", quote: 700, contractValue: 0, depositAmount: 0, depositPaid: 0, inquiryDate: "", followUpDate: "", notes: "Three-stream sorting + compost audit report.", checklist: [] },
+  { id: "vn_f6", eventId: "evt_festival", category: "Waste", name: "Green Loop Waste", contactName: "Priya Raman", email: "priya@greenloop.example", phone: "(503) 555-0166", status: "prospect", quote: 700, contractValue: 0, depositAmount: 0, depositPaid: 0, inquiryDate: "", followUpDate: "", notes: "Three-stream sorting + compost audit report.", checklist: [] },
   { id: "vn_f7", eventId: "evt_festival", category: "Community sponsors", name: "Willow & Pine Makers Coop", contactName: "Sam Okafor", email: "coop@willowpine.example", phone: "(503) 555-0188", status: "deposit", quote: 900, contractValue: 900, depositAmount: 450, depositPaid: 450, inquiryDate: "2026-09-12", followUpDate: "2026-11-12", notes: "18 maker stalls; shared power plan submitted.", checklist: [
     { id: "qf7a", text: "Stall power loads confirmed for the shared plan", done: true },
     { id: "qf7b", text: "Each maker carries their own public liability cover", done: false },

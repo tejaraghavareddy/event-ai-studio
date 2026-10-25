@@ -141,9 +141,11 @@ export function VendorFormDialog({
         ? state.customCategory.trim()
         : state.category;
     if (category.length < 2) {
-      next.category = "Pick a category or type a custom one.";
-    } else if (state.category === CUSTOM_CATEGORY) {
-      next.customCategory = undefined;
+      if (state.category === CUSTOM_CATEGORY) {
+        next.customCategory = "Type the category name.";
+      } else {
+        next.category = "Pick a category or type a custom one.";
+      }
     }
     if (state.email.trim() && !EMAIL_PATTERN.test(state.email.trim())) {
       next.email = "That email doesn't look right.";
@@ -321,7 +323,7 @@ export function VendorFormDialog({
               Money ({currency})
             </p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label={`Quoted price`} htmlFor="vendor-quote" error={errors.quote}>
+              <Field label="Quoted price" htmlFor="vendor-quote" error={errors.quote}>
                 <Input
                   id="vendor-quote"
                   type="number"

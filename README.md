@@ -2,7 +2,8 @@
 
 An intelligent event-planning workspace for weddings, milestone birthdays,
 anniversaries and community festivals: budgets that balance, phase-grouped run
-of shows, vendor tracking with inquiry checklists, a creative idea board, and
+of shows, a vendor pipeline with inquiry checklists and an AI RFP question
+suggester, a creative idea board, and
 Google Gemini drafts that are validated and reviewed before anything touches
 your plan.
 
@@ -65,7 +66,7 @@ actionable error instead of failing silently.
 | `/dashboard/overview` | Event identity, days until, budget KPIs, spend chart, vendor progress, upcoming milestones, AI quick actions |
 | `/dashboard/budget` | Editable categories (allocated / committed / paid), searchable table, over-allocation warnings, allocation-vs-commitment chart |
 | `/dashboard/timeline` | Planning milestones checklist plus a phase-grouped, searchable run of show with owners, durations and check-offs |
-| `/dashboard/vendors` | Suppliers from prospect to paid, quotes/deposits/balances, inline status changes, inquiry questions, status filters |
+| `/dashboard/vendors` | Vendor pipeline (Prospect → Inquiry Sent → Quoted → Contract Signed → Deposit Paid), quoted/contracted/deposited/outstanding totals, follow-up dates, per-vendor inquiry checklists with copy/edit/tick, AI RFP question suggester, search / category / status filters and sorting |
 | `/dashboard/studio` | Creative idea board (themes, decor, menus, activities, palettes) with favorites, color swatches and filters |
 | `/dashboard/settings` | Event details, workspace export/import, reset to demo data, delete event / clear workspace |
 
