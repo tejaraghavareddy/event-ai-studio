@@ -1,32 +1,44 @@
 import { format, parseISO } from "date-fns";
 
+/**
+ * Locale used per currency so INR renders with Indian digit grouping
+ * (₹1,50,000) while everything else keeps standard grouping ($150,000).
+ */
+const CURRENCY_LOCALES: Record<string, string> = {
+  INR: "en-IN",
+};
+
+function localeFor(currency: string): string {
+  return CURRENCY_LOCALES[currency] ?? "en-US";
+}
+
 /** Money is always rendered with aligned tabular figures. */
 export function formatMoney(value: number, currency = "USD"): string {
   const safe = Number.isFinite(value) ? value : 0;
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(localeFor(currency), {
       style: "currency",
       currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: Math.abs(safe) % 1 === 0 ? 0 : 2,
     }).format(safe);
   } catch {
-    return `$${safe.toLocaleString("en-US")}`;
+    return `${currency} ${safe.toLocaleString(localeFor(currency))}`;
   }
 }
 
-/** Compact money for tight spaces: $48K, $1.2M. */
+/** Compact money for tight spaces: $48K, ₹4.8L, ₹1.2Cr. */
 export function formatMoneyCompact(value: number, currency = "USD"): string {
   const safe = Number.isFinite(value) ? value : 0;
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(localeFor(currency), {
       style: "currency",
       currency,
       notation: "compact",
       maximumFractionDigits: 1,
     }).format(safe);
   } catch {
-    return `$${Math.round(safe).toLocaleString("en-US")}`;
+    return `${currency} ${Math.round(safe).toLocaleString(localeFor(currency))}`;
   }
 }
 

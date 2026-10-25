@@ -61,8 +61,30 @@ export interface BudgetCategory {
   allocated: number;
   /** Spend under contract / booked. */
   committed: number;
-  /** Money already paid out. */
+  /**
+   * Payments recorded directly on the category (e.g. a deposit logged before
+   * itemising). Ledger expenses add to this — the two are disjoint, so a
+   * category's total paid = `paid` + paid ledger entries.
+   */
   paid: number;
+  notes: string;
+}
+
+/** A single transaction in the expense ledger. Ledger entries are the source
+ * of truth for actual expenditure; paid entries roll into paid totals. */
+export interface Expense {
+  id: string;
+  eventId: string;
+  /** Category this spend belongs to (kept valid — deleting a category removes its expenses). */
+  categoryId: string;
+  /** What was bought. */
+  title: string;
+  /** Transaction amount in the event currency; finite and ≥ 0. */
+  amount: number;
+  /** ISO date "YYYY-MM-DD" the transaction happened. */
+  date: string;
+  /** Paid in full? Unpaid entries form the outstanding balance. */
+  paid: boolean;
   notes: string;
 }
 
@@ -154,6 +176,7 @@ export interface StudioState {
   version: 1;
   events: EventRecord[];
   budgetCategories: BudgetCategory[];
+  expenses: Expense[];
   timelineItems: TimelineItem[];
   milestones: Milestone[];
   vendors: Vendor[];

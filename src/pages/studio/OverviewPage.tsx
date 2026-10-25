@@ -69,6 +69,7 @@ export default function OverviewPage() {
     if (!event) return null;
     return {
       categories: state.budgetCategories.filter((c) => c.eventId === event.id),
+      expenses: state.expenses.filter((e) => e.eventId === event.id),
       timelineItems: state.timelineItems.filter((i) => i.eventId === event.id),
       milestones: state.milestones.filter((m) => m.eventId === event.id),
       vendors: state.vendors.filter((v) => v.eventId === event.id),
@@ -77,9 +78,9 @@ export default function OverviewPage() {
 
   if (!event || !scope) return null;
 
-  const totals = budgetTotals(event, scope.categories);
-  const views = categoryViews(scope.categories).sort(
-    (a, b) => b.committed - a.committed,
+  const totals = budgetTotals(event, scope.categories, scope.expenses);
+  const views = categoryViews(scope.categories, scope.expenses).sort(
+    (a, b) => b.spent - a.spent,
   );
   const tasks = taskStats(scope.timelineItems);
   const milestones = upcomingMilestones(scope.milestones, 5);
@@ -90,13 +91,13 @@ export default function OverviewPage() {
   const donutData = [
     { name: "Paid", value: Math.max(totals.paid, 0), color: CHART_COLORS.paid },
     {
-      name: "Committed, unpaid",
-      value: Math.max(totals.committed - totals.paid, 0),
+      name: "Outstanding",
+      value: Math.max(totals.outstanding, 0),
       color: CHART_COLORS.committed,
     },
     {
-      name: "Remaining",
-      value: Math.max(totals.remaining, 0),
+      name: "Unspent",
+      value: Math.max(totals.unspent, 0),
       color: CHART_COLORS.remaining,
     },
   ];
@@ -218,10 +219,10 @@ export default function OverviewPage() {
           progress={totals.committedRatio * 100}
         />
         <KpiCard
-          label="Remaining"
-          value={formatMoneyCompact(totals.remaining, event.currency)}
-          sub={`${formatMoneyCompact(totals.paid, event.currency)} already paid`}
-          tone={totals.remaining < 0 ? "danger" : undefined}
+          label="Actual spend"
+          value={formatMoneyCompact(totals.actual, event.currency)}
+          sub={`${formatMoney(totals.paid, event.currency)} paid · ${formatMoney(totals.outstanding, event.currency)} outstanding`}
+          tone={totals.unspent < 0 ? "danger" : undefined}
         />
         <KpiCard
           label="Tasks complete"
@@ -257,10 +258,10 @@ export default function OverviewPage() {
                   <ResponsiveDonut data={donutData} />
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span className="tabular text-2xl font-bold tracking-tight">
-                      {Math.round(totals.committedRatio * 100)}%
+                      {Math.round(totals.actualRatio * 100)}%
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      committed
+                      of budget spent
                     </span>
                   </div>
                 </div>
@@ -438,14 +439,14 @@ export default function OverviewPage() {
                   {views.slice(0, 5).map((category) => {
                     const ratio =
                       category.allocated > 0
-                        ? Math.min(category.committed / category.allocated, 1)
+                        ? Math.min(category.spent / category.allocated, 1)
                         : 0;
                     return (
                       <li key={category.id} className="space-y-1">
                         <div className="flex items-baseline justify-between gap-3 text-sm">
                           <span className="truncate">{category.name}</span>
                           <span className="tabular shrink-0 font-semibold">
-                            {formatMoneyCompact(category.committed, event.currency)}
+                            {formatMoneyCompact(category.spent, event.currency)}
                           </span>
                         </div>
                         <div className="h-1.5 rounded-full bg-surface">

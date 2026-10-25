@@ -2,6 +2,7 @@ import type {
   BudgetCategory,
   CreativeIdea,
   EventRecord,
+  Expense,
   Milestone,
   StudioState,
   TimelineItem,
@@ -225,12 +226,40 @@ export const DEMO_IDEAS: CreativeIdea[] = [
   { id: "id_f3", eventId: "evt_festival", kind: "menu", title: "Local Food Cart Collective", description: "Subsidised stalls for six neighbourhood carts — one per world-food quadrant of the park, plus a free water refill station to cut plastic.", palette: [], favorite: false, source: "manual" },
 ];
 
+/**
+ * Expense ledger entries for the demo events. These are deliberately distinct
+ * from the categories' direct `paid` values so totals never double-count:
+ * category.paid = payments logged before itemising, expenses = itemised
+ * transactions (some settled, some still outstanding).
+ */
+export const DEMO_EXPENSES: Expense[] = [
+  // Wedding
+  { id: "exp_w1", eventId: "evt_wedding", categoryId: "cat_w1", title: "Barn rental — second installment", amount: 3600, date: "2026-11-15", paid: false, notes: "Invoice net-30; scheduled for the November retainer run." },
+  { id: "exp_w2", eventId: "evt_wedding", categoryId: "cat_w2", title: "Menu tasting for six", amount: 450, date: "2026-10-02", paid: true, notes: "Credited against the final catering invoice." },
+  { id: "exp_w3", eventId: "evt_wedding", categoryId: "cat_w3", title: "Engagement session", amount: 600, date: "2026-11-08", paid: true, notes: "Golden-hour shoot in the olive grove; gallery in 3 weeks." },
+  { id: "exp_w4", eventId: "evt_wedding", categoryId: "cat_w4", title: "Florist proposal retainer", amount: 800, date: "2026-11-20", paid: false, notes: "Held until the peony → ranunculus swap is approved." },
+  { id: "exp_w5", eventId: "evt_wedding", categoryId: "cat_w7", title: "Save-the-date printing & postage", amount: 145, date: "2026-10-20", paid: true, notes: "90 cards, tracked mail." },
+
+  // Milestone birthday
+  { id: "exp_b1", eventId: "evt_birthday", categoryId: "cat_b1", title: "Lighting rig add-on", amount: 450, date: "2026-11-12", paid: true, notes: "Warm-dim cans for the rug floor — no white light." },
+  { id: "exp_b2", eventId: "evt_birthday", categoryId: "cat_b2", title: "Mocktail bar deposit", amount: 300, date: "2026-11-25", paid: false, notes: "Due with the final headcount confirmation." },
+  { id: "exp_b3", eventId: "evt_birthday", categoryId: "cat_b5", title: "Second shooter hold", amount: 240, date: "2026-12-01", paid: false, notes: "Optional add-on — decide after RSVP close." },
+  { id: "exp_b4", eventId: "evt_birthday", categoryId: "cat_b7", title: "Invitation postage", amount: 96, date: "2026-10-18", paid: true, notes: "62 letterpress invites, hand-cancelled." },
+
+  // Festival
+  { id: "exp_f1", eventId: "evt_festival", categoryId: "cat_f1", title: "Liability policy premium", amount: 620, date: "2026-09-20", paid: true, notes: "$2M coverage; certificate filed with the parks department." },
+  { id: "exp_f2", eventId: "evt_festival", categoryId: "cat_f2", title: "Stage power run & distro", amount: 350, date: "2026-10-30", paid: false, notes: "Generator cabling from the north lot — quote pending final route." },
+  { id: "exp_f3", eventId: "evt_festival", categoryId: "cat_f6", title: "Poster print run (500)", amount: 480, date: "2026-10-08", paid: true, notes: "Recycled stock, delivered to 40 neighbourhood locations." },
+  { id: "exp_f4", eventId: "evt_festival", categoryId: "cat_f8", title: "ASL interpreter deposit", amount: 300, date: "2026-10-22", paid: false, notes: "Two interpreters, 6-hour block; balance due at event." },
+];
+
 /** Builds the complete seeded state used on first run and after a reset. */
 export function createSeedState(): StudioState {
   return {
     version: 1,
     events: DEMO_EVENTS,
     budgetCategories: DEMO_BUDGET_CATEGORIES,
+    expenses: DEMO_EXPENSES,
     timelineItems: DEMO_TIMELINE_ITEMS,
     milestones: DEMO_MILESTONES,
     vendors: DEMO_VENDORS,

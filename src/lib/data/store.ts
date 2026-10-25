@@ -4,6 +4,7 @@ import type {
   CreativeIdea,
   EventInput,
   EventRecord,
+  Expense,
   Milestone,
   StudioState,
   TimelineItem,
@@ -61,6 +62,33 @@ export function parseState(value: unknown): StudioState | null {
     ),
     eventIds,
   );
+
+  // Expenses must belong to a live event *and* a live category; amounts and
+  // dates are sanitised so a corrupt payload can never poison calculations.
+  const categoryIds = new Set(budgetCategories.map((c) => c.id));
+  const expenses = belongToEvents(
+    pickArray<Expense>(
+      value.expenses,
+      (i): i is Expense =>
+        isRecord(i) &&
+        typeof i.id === "string" &&
+        typeof i.categoryId === "string" &&
+        categoryIds.has(i.categoryId) &&
+        typeof i.title === "string",
+    ),
+    eventIds,
+  ).map((expense) => ({
+    ...expense,
+    amount:
+      typeof expense.amount === "number" &&
+      Number.isFinite(expense.amount) &&
+      expense.amount >= 0
+        ? expense.amount
+        : 0,
+    date: typeof expense.date === "string" ? expense.date : "",
+    paid: expense.paid === true,
+    notes: typeof expense.notes === "string" ? expense.notes : "",
+  }));
   const timelineItems = belongToEvents(
     pickArray<TimelineItem>(
       value.timelineItems,
@@ -103,6 +131,7 @@ export function parseState(value: unknown): StudioState | null {
     version: 1,
     events,
     budgetCategories,
+    expenses,
     timelineItems,
     milestones,
     vendors,
@@ -218,6 +247,7 @@ function deleteEvent(eventId: string): void {
     ...state,
     events,
     budgetCategories: state.budgetCategories.filter((c) => c.eventId !== eventId),
+    expenses: state.expenses.filter((e) => e.eventId !== eventId),
     timelineItems: state.timelineItems.filter((i) => i.eventId !== eventId),
     milestones: state.milestones.filter((m) => m.eventId !== eventId),
     vendors: state.vendors.filter((v) => v.eventId !== eventId),
@@ -258,6 +288,51 @@ function deleteBudgetCategory(id: string): void {
   commit(touch(target.eventId, {
     ...state,
     budgetCategories: state.budgetCategories.filter((c) => c.id !== id),
+    // Orphaned expenses would reference a category that no longer exists.
+    expenses: state.expenses.filter((e) => e.categoryId !== id),
+  }));
+}
+
+/* -------------------------------------------------------------- expenses */
+
+function addExpense(
+  eventId: string,
+  input: Omit<Expense, "id" | "eventId">,
+): Expense {
+  const expense: Expense = { ...input, id: newId("exp"), eventId };
+  commit(touch(eventId, {
+    ...state,
+    expenses: [...state.expenses, expense],
+  }));
+  return expense;
+}
+
+function updateExpense(id: string, patch: Partial<Omit<Expense, "id" | "eventId">>): void {
+  const target = state.expenses.find((e) => e.id === id);
+  if (!target) return;
+  commit(touch(target.eventId, {
+    ...state,
+    expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+  }));
+}
+
+function deleteExpense(id: string): void {
+  const target = state.expenses.find((e) => e.id === id);
+  if (!target) return;
+  commit(touch(target.eventId, {
+    ...state,
+    expenses: state.expenses.filter((e) => e.id !== id),
+  }));
+}
+
+function toggleExpensePaid(id: string): void {
+  const target = state.expenses.find((e) => e.id === id);
+  if (!target) return;
+  commit(touch(target.eventId, {
+    ...state,
+    expenses: state.expenses.map((e) =>
+      e.id === id ? { ...e, paid: !e.paid } : e,
+    ),
   }));
 }
 
@@ -471,6 +546,7 @@ function clearAllData(): void {
     version: 1,
     events: [],
     budgetCategories: [],
+    expenses: [],
     timelineItems: [],
     milestones: [],
     vendors: [],
@@ -568,6 +644,10 @@ export const store = {
   upsertBudgetCategory,
   deleteBudgetCategory,
   replaceBudgetCategories,
+  addExpense,
+  updateExpense,
+  deleteExpense,
+  toggleExpensePaid,
   upsertTimelineItem,
   deleteTimelineItem,
   toggleTimelineItem,
