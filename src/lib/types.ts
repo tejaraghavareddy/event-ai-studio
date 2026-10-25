@@ -215,27 +215,55 @@ export interface Vendor {
   checklist: VendorChecklistItem[];
 }
 
-export type IdeaKind = "theme" | "decor" | "menu" | "activity" | "palette";
+export type IdeaKind =
+  | "theme"
+  | "decor"
+  | "menu"
+  | "activity"
+  | "palette"
+  | "music"
+  | "favor"
+  | "drink";
 export const IDEA_KIND_LABELS: Record<IdeaKind, string> = {
-  theme: "Theme",
-  decor: "Decor",
-  menu: "Menu",
-  activity: "Activity",
+  theme: "Theme concept",
+  decor: "Decor & atmosphere",
+  menu: "Food & menu",
+  activity: "Entertainment & activities",
   palette: "Color palette",
+  music: "Music & playlist",
+  favor: "Guest experience & favors",
+  drink: "Signature drink",
 };
 export const IDEA_KINDS: IdeaKind[] = [
   "theme",
+  "palette",
   "decor",
   "menu",
   "activity",
-  "palette",
+  "music",
+  "favor",
+  "drink",
 ];
+
+/** Kinds that make sense to pair with a palette swatch on the moodboard. */
+export const PALETTE_IDEA_KINDS: IdeaKind[] = ["theme", "palette", "decor", "drink"];
+
 export interface CreativeIdea {
   id: string;
   eventId: string;
   kind: IdeaKind;
   title: string;
   description: string;
+  /** Why this works for *this* event (season, guest count, mood, budget). */
+  rationale: string;
+  /** Practical steps to actually pull it off. */
+  implementationNotes: string;
+  /**
+   * Approximate planning estimate in the event currency — NOT a verified
+   * vendor price. Both zero means no estimate was feasible.
+   */
+  costLow: number;
+  costHigh: number;
   /** Hex colors for palette ideas (and palette-flavoured decor ideas). */
   palette: string[];
   favorite: boolean;

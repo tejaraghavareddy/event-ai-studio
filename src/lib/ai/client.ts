@@ -14,6 +14,7 @@ import type {
 } from "@/lib/types";
 import { newId } from "@/lib/types";
 import { store } from "@/lib/data/store";
+import { parseCostRange } from "@/lib/data/idea";
 
 /**
  * Client-side AI layer.
@@ -31,7 +32,8 @@ export type PlanKind =
   | "timeline"
   | "vendors"
   | "ideas"
-  | "questions";
+  | "questions"
+  | "concept";
 
 /* ------------------------------------------------------- response schemas */
 
@@ -74,6 +76,13 @@ export const aiIdeaLineSchema = z.object({
   kind: z.string().optional(),
   title: z.string().min(1),
   description: z.string().optional(),
+  rationale: z.string().optional(),
+  implementationNotes: z.string().optional(),
+  /** Approximate planning range — normalised from object, string or number. */
+  costEstimate: z.preprocess(
+    (value) => parseCostRange(value),
+    z.object({ low: z.number(), high: z.number() }),
+  ).optional(),
   palette: z.array(z.string()).optional(),
 });
 
@@ -134,7 +143,50 @@ export function normalizeDate(value: string | undefined, fallback: string): stri
   return fallback;
 }
 
-const IDEA_KINDS: IdeaKind[] = ["theme", "decor", "menu", "activity", "palette"];
+/**
+ * Meteorological season for the event date (northern hemisphere) with the
+ * month appended — grounds seasonal menu, decor and activity suggestions.
+ */
+export function seasonForDate(iso: string): string | undefined {
+  const match = iso.match(/^\d{4}-(\d{2})/);
+  if (!match) return undefined;
+  const month = Number(match[1]);
+  if (!Number.isFinite(month) || month < 1 || month > 12) return undefined;
+  const monthName = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ][month - 1];
+  const season =
+    month === 12 || month <= 2
+      ? "Winter"
+      : month <= 5
+        ? "Spring"
+        : month <= 8
+          ? "Summer"
+          : "Autumn";
+  return `${season} (${monthName})`;
+}
+
+const IDEA_KINDS: IdeaKind[] = [
+  "palette",
+  "music",
+  "drink",
+  "favor",
+  "theme",
+  "decor",
+  "menu",
+  "activity",
+];
 
 export function normalizeIdeaKind(value: string | undefined): IdeaKind {
   const raw = value?.toLowerCase() ?? "";
@@ -235,6 +287,10 @@ export function planToDomain(event: EventRecord, plan: AiPlan): PlanConversion {
       kind: normalizeIdeaKind(line.kind),
       title: line.title.trim().slice(0, 80),
       description: line.description?.trim() ?? "",
+      rationale: line.rationale?.trim() ?? "",
+      implementationNotes: line.implementationNotes?.trim() ?? "",
+      costLow: line.costEstimate?.low ?? 0,
+      costHigh: line.costEstimate?.high ?? 0,
       palette: (line.palette ?? [])
         .map(cleanHex)
         .filter((color): color is string => color !== null)
@@ -271,7 +327,12 @@ export function useAi() {
     async (
       kind: PlanKind,
       event: EventRecord,
-      options?: { notes?: string; existingCategoryNames?: string[] },
+      options?: {
+        notes?: string;
+        existingCategoryNames?: string[];
+        /** Creative category to focus idea/concept generation on. */
+        ideaCategory?: string;
+      },
     ): Promise<AiResult> => {
       try {
         const response = await generateAction({
@@ -286,6 +347,8 @@ export function useAi() {
           preferences: event.preferences,
           existingCategories: options?.existingCategoryNames,
           notes: options?.notes,
+          ideaCategory: options?.ideaCategory,
+          season: seasonForDate(event.date),
         });
 
         if (!response.ok) return { ok: false, error: response.error };

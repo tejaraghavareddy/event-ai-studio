@@ -12,6 +12,7 @@ import type {
 } from "@/lib/types";
 import { newId } from "@/lib/types";
 import { createSeedState } from "./seed";
+import { normalizeIdea } from "./idea";
 import { normalizeVendor } from "./vendor";
 
 /**
@@ -123,7 +124,8 @@ export function parseState(value: unknown): StudioState | null {
         isRecord(i) && typeof i.id === "string" && typeof i.title === "string",
     ),
     eventIds,
-  );
+    // Migrate legacy rows (title/description only) onto the full idea model.
+  ).map(normalizeIdea);
 
   const activeEventId =
     typeof value.activeEventId === "string" && eventIds.has(value.activeEventId)
