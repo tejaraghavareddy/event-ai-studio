@@ -195,7 +195,7 @@ export default function CreativePage() {
   };
 
   const handleSave = (form: IdeaForm) => {
-    const payload: Omit<CreativeIdea, "id" | "eventId"> = {
+    const payload: Omit<CreativeIdea, "id" | "eventId" | "favorite" | "source"> = {
       kind: form.kind,
       title: form.title.trim(),
       description: form.description.trim(),
@@ -495,7 +495,7 @@ export default function CreativePage() {
         }}
         idea={refining}
         event={event}
-        busy={busyTask.startsWith("refine")}
+        busy={busyTask?.startsWith("refine") ?? false}
         onGenerate={(direction) => {
           if (refining) void runRefine(refining, direction);
         }}

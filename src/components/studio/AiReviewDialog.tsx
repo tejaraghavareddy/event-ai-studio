@@ -49,6 +49,7 @@ export const PLAN_KIND_LABELS: Record<PlanKind, string> = {
   vendors: "Vendor checklist",
   ideas: "Creative concepts",
   questions: "Inquiry questions",
+  concept: "Cohesive concept",
 };
 
 export type ReviewResult = Extract<AiResult, { ok: true }>;
@@ -71,7 +72,7 @@ export function useAiReview() {
     async (
       kind: PlanKind,
       event: EventRecord,
-      options?: { notes?: string },
+      options?: { notes?: string; ideaCategory?: string },
     ): Promise<boolean> => {
       setBusy(kind);
       try {
@@ -388,6 +389,19 @@ export function AiReviewDialog({
                       </div>
                       <StatusPill label={IDEA_KIND_LABELS[idea.kind]} tone="muted" />
                     </div>
+                    {idea.rationale ? (
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        <span className="font-semibold text-gold">Why it works: </span>
+                        {idea.rationale}
+                      </p>
+                    ) : null}
+                    {idea.costLow > 0 || idea.costHigh > 0 ? (
+                      <p className="tabular mt-1 text-xs text-muted-foreground">
+                        Est. {formatMoney(idea.costLow, event.currency)} –{" "}
+                        {formatMoney(idea.costHigh, event.currency)}
+                        <span className="ml-1.5">(approximate, not a vendor quote)</span>
+                      </p>
+                    ) : null}
                     {idea.palette.length > 0 ? (
                       <div className="mt-2 flex gap-1.5">
                         {idea.palette.map((color) => (

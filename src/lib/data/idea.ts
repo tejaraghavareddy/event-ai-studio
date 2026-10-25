@@ -1,4 +1,4 @@
-import { IDEA_KINDS, newId } from "@/lib/types";
+import { IDEA_KINDS } from "@/lib/types";
 import type { CreativeIdea, IdeaKind } from "@/lib/types";
 
 /**
@@ -38,8 +38,11 @@ function toHex(value: unknown): string | null {
 export function parseCostRange(value: unknown): { low: number; high: number } {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
-    const low = toFiniteMoney(record.low ?? record.min ?? record.from);
-    const high = toFiniteMoney(record.high ?? record.max ?? record.to);
+    const first = toFiniteMoney(record.low ?? record.min ?? record.from);
+    const second = toFiniteMoney(record.high ?? record.max ?? record.to);
+    // Order-insensitive: models occasionally swap low/high.
+    const low = Math.min(first, second);
+    const high = Math.max(first, second);
     if (high > 0) return { low: low > 0 ? low : high, high };
     if (low > 0) return { low, high: low };
     return { low: 0, high: 0 };
@@ -72,7 +75,8 @@ export function parseCostRange(value: unknown): { low: number; high: number } {
  */
 export function formatCostRange(low: number, high: number): string {
   if (!(low > 0) && !(high > 0)) return "—";
-  if (!(high > 0) || low === high) return String(Math.round(low > 0 ? low : high));
+  if (!(low > 0)) return String(Math.round(high));
+  if (!(high > 0) || low === high) return String(Math.round(low));
   return `${Math.round(low)}–${Math.round(high)}`;
 }
 
@@ -129,9 +133,4 @@ export function normalizeIdea(
     favorite: raw.favorite === true,
     source: raw.source === "ai" ? "ai" : "manual",
   };
-}
-
-/** Fresh id helper shared by the page and AI conversion. */
-export function newIdeaId(): string {
-  return newId("idea");
 }

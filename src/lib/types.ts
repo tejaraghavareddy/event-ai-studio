@@ -245,9 +245,6 @@ export const IDEA_KINDS: IdeaKind[] = [
   "drink",
 ];
 
-/** Kinds that make sense to pair with a palette swatch on the moodboard. */
-export const PALETTE_IDEA_KINDS: IdeaKind[] = ["theme", "palette", "decor", "drink"];
-
 export interface CreativeIdea {
   id: string;
   eventId: string;
