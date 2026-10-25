@@ -113,35 +113,106 @@ export interface Milestone {
   done: boolean;
 }
 
-export type VendorStatus = "prospect" | "contacted" | "quoted" | "booked" | "paid";
+/** Vendor pipeline: from first prospect through to a settled deposit. */
+export type VendorStatus =
+  | "prospect"
+  | "inquiry"
+  | "quoted"
+  | "contracted"
+  | "deposit";
 export const VENDOR_STATUSES: VendorStatus[] = [
   "prospect",
-  "contacted",
+  "inquiry",
   "quoted",
-  "booked",
-  "paid",
+  "contracted",
+  "deposit",
 ];
 export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
   prospect: "Prospect",
-  contacted: "Contacted",
-  quoted: "Quote received",
-  booked: "Booked",
-  paid: "Paid in full",
+  inquiry: "Inquiry Sent",
+  quoted: "Quoted",
+  contracted: "Contract Signed",
+  deposit: "Deposit Paid",
 };
+
+/** Statuses where a signed commitment exists (drives contracted/outstanding). */
+export const COMMITTED_VENDOR_STATUSES: VendorStatus[] = ["contracted", "deposit"];
+
+/**
+ * Legacy status values persisted by earlier versions, mapped onto the current
+ * pipeline so old localStorage data keeps working after an upgrade.
+ */
+const LEGACY_VENDOR_STATUSES: Record<string, VendorStatus> = {
+  prospect: "prospect",
+  contacted: "inquiry",
+  inquiry: "inquiry",
+  quoted: "quoted",
+  booked: "contracted",
+  contracted: "contracted",
+  paid: "deposit",
+  deposit: "deposit",
+};
+
+export function normalizeVendorStatus(value: unknown): VendorStatus {
+  if (typeof value === "string" && value in LEGACY_VENDOR_STATUSES) {
+    return LEGACY_VENDOR_STATUSES[value];
+  }
+  return "prospect";
+}
+
+/**
+ * The supported vendor categories. Category is a select in the form (plus a
+ * custom option) so totals and filters stay consistent; event-specific lines
+ * like permits and community sponsors are included for festivals.
+ */
+export const VENDOR_CATEGORIES: string[] = [
+  "Venue",
+  "Catering",
+  "Photography",
+  "Videography",
+  "Decoration",
+  "Florals",
+  "Sound",
+  "Entertainment",
+  "Transportation",
+  "Accommodation",
+  "Permits",
+  "Community sponsors",
+];
+
+/** One line of a vendor's inquiry checklist (manual or AI-generated RFP questions). */
+export interface VendorChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Vendor {
   id: string;
   eventId: string;
   category: string;
+  /** Business or trading name. */
   name: string;
+  /** Day-to-day contact at the business. */
   contactName: string;
   email: string;
   phone: string;
   status: VendorStatus;
+  /** Quoted price in the event currency; 0 when nothing quoted yet. */
   quote: number;
+  /** Signed contract value; 0 while negotiating (committed falls back to quote). */
+  contractValue: number;
+  /** Deposit the vendor requires (asked for on contract). */
+  depositAmount: number;
+  /** Deposit actually paid to date. */
   depositPaid: number;
+  /** ISO date the inquiry was sent ("" = not yet). */
+  inquiryDate: string;
+  /** ISO date of the next follow-up ("" = none scheduled). */
+  followUpDate: string;
   notes: string;
-  /** Inquiry questions to ask before signing (also AI-generated checklists). */
-  questions?: string[];
+  /** Inquiry/RFP checklist — questions to confirm before signing. */
+  checklist: VendorChecklistItem[];
 }
 
 export type IdeaKind = "theme" | "decor" | "menu" | "activity" | "palette";

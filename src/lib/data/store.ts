@@ -12,6 +12,7 @@ import type {
 } from "@/lib/types";
 import { newId } from "@/lib/types";
 import { createSeedState } from "./seed";
+import { normalizeVendor } from "./vendor";
 
 /**
  * Persistence layer.
@@ -112,7 +113,9 @@ export function parseState(value: unknown): StudioState | null {
         isRecord(i) && typeof i.id === "string" && typeof i.name === "string",
     ),
     eventIds,
-  );
+    // Migrate legacy rows (old status values, `questions` arrays, missing
+    // money/date fields) onto the current Vendor shape.
+  ).map(normalizeVendor);
   const ideas = belongToEvents(
     pickArray<CreativeIdea>(
       value.ideas,

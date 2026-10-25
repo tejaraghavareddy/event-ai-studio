@@ -13,7 +13,13 @@ import { v } from "convex/values";
  * anything touches application state.
  */
 
-export type PlanKind = "plan" | "budget" | "timeline" | "vendors" | "ideas";
+export type PlanKind =
+  | "plan"
+  | "budget"
+  | "timeline"
+  | "vendors"
+  | "ideas"
+  | "questions";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 
@@ -31,7 +37,12 @@ Rules:
 - Never include placeholder text such as "TBD", "Lorem ipsum" or "Lorem".
 - Be culturally thoughtful: never stereotype a culture, and only reference traditions that fit the stated preferences.`;
 
-function schemaForKind(kind: PlanKind): string {
+interface PromptContext {
+  guestCount: number;
+  vendorCategory?: string;
+}
+
+function schemaForKind(kind: PlanKind, ctx: PromptContext): string {
   const budgetLine = `{"name": string, "allocated": number, "rationale": string}`;
   const timelineLine = `{"title": string, "startTime": "HH:mm", "endTime": "HH:mm", "phase": string, "notes": string}`;
   const milestoneLine = `{"title": string, "dueDate": "YYYY-MM-DD"}`;
@@ -47,6 +58,8 @@ function schemaForKind(kind: PlanKind): string {
       return `Return {"summary": string, "vendors": [${vendorLine} x 6-12]} — the categories this event must book, an ideal-supplier profile for each, why it matters for this event, and 3-4 sharp inquiry questions to ask before signing.`;
     case "ideas":
       return `Return {"summary": string, "ideas": [${ideaLine} x 6-10]} spanning themes, decor, menus, activities and color palettes. Palette ideas must include 3-6 hex colors in the "palette" array; other kinds may leave it empty. "kind" must be one of theme, decor, menu, activity, palette.`;
+    case "questions":
+      return `Return {"summary": string, "questions": [string x 10-16]} — a request-for-proposal style inquiry checklist for the "${ctx.vendorCategory ?? "selected vendor"}" role at this event. Cover: capacity and scale for ${ctx.guestCount} guests; what is included vs extra; setup/teardown windows and staffing; power, access and logistics on site; commercial terms (payment schedule, overtime, cancellation, force majeure); insurance, permits and safety; and backups or contingency. Make every question specific to this event's type, location and stated preferences — never generic, never answerable with yes/no alone.`;
     case "plan":
       return `Return a complete plan: {"summary": string, "budget": [${budgetLine} x 10-14], "milestones": [${milestoneLine} x 6-9], "timeline": [${timelineLine} x 14-20], "vendors": [${vendorLine} x 8-12], "ideas": [${ideaLine} x 5-8]}. Everything must agree: timeline phases should make sense for this event type, and budget allocations must sum to at most the total budget.`;
   }
@@ -65,6 +78,8 @@ export const generate = action({
     preferences: v.optional(v.string()),
     existingCategories: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
+    /** Vendor category for the RFP question suggester. */
+    vendorCategory: v.optional(v.string()),
   },
   handler: async (
     _ctx,
@@ -79,9 +94,9 @@ export const generate = action({
       };
     }
 
-    const kind = (["plan", "budget", "timeline", "vendors", "ideas"] as const).includes(
-      args.kind as PlanKind,
-    )
+    const kind = (
+      ["plan", "budget", "timeline", "vendors", "ideas", "questions"] as const
+    ).includes(args.kind as PlanKind)
       ? (args.kind as PlanKind)
       : "plan";
 
@@ -97,9 +112,15 @@ export const generate = action({
       args.existingCategories?.length
         ? `- Budget categories already in use: ${args.existingCategories.join(", ")}`
         : null,
+      args.vendorCategory?.trim()
+        ? `- Vendor category for this inquiry: ${args.vendorCategory.trim()}`
+        : null,
       args.notes?.trim() ? `- Extra direction from the planner: ${args.notes.trim()}` : null,
       "",
-      `Task: ${schemaForKind(kind)}`,
+      `Task: ${schemaForKind(kind, {
+        guestCount: args.guestCount,
+        vendorCategory: args.vendorCategory,
+      })}`,
     ]
       .filter((line): line is string => line !== null)
       .join("\n");

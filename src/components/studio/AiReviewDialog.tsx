@@ -48,6 +48,7 @@ export const PLAN_KIND_LABELS: Record<PlanKind, string> = {
   timeline: "Run of show",
   vendors: "Vendor checklist",
   ideas: "Creative concepts",
+  questions: "Inquiry questions",
 };
 
 export type ReviewResult = Extract<AiResult, { ok: true }>;
@@ -340,21 +341,21 @@ export function AiReviewDialog({
                           </p>
                         ) : null}
                       </div>
-                      {vendor.questions?.length ? (
+                      {vendor.checklist?.length ? (
                         <StatusPill
-                          label={`${vendor.questions.length} questions`}
+                          label={`${vendor.checklist.length} questions`}
                           tone="gold"
                         />
                       ) : null}
                     </div>
-                    {vendor.questions?.length ? (
+                    {vendor.checklist?.length ? (
                       <ul className="mt-1.5 space-y-1 pl-4">
-                        {vendor.questions.map((question, index) => (
+                        {vendor.checklist.map((item) => (
                           <li
-                            key={index}
+                            key={item.id}
                             className="text-xs leading-5 text-muted-foreground"
                           >
-                            · {question}
+                            · {item.text}
                           </li>
                         ))}
                       </ul>

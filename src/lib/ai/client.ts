@@ -25,7 +25,13 @@ import { store } from "@/lib/data/store";
  * user explicitly applies it.
  */
 
-export type PlanKind = "plan" | "budget" | "timeline" | "vendors" | "ideas";
+export type PlanKind =
+  | "plan"
+  | "budget"
+  | "timeline"
+  | "vendors"
+  | "ideas"
+  | "questions";
 
 /* ------------------------------------------------------- response schemas */
 
@@ -81,6 +87,12 @@ export const aiPlanSchema = z.object({
 });
 
 export type AiPlan = z.infer<typeof aiPlanSchema>;
+
+/** RFP question suggester — a flat list, no domain conversion needed. */
+export const aiQuestionsSchema = z.object({
+  summary: z.string().optional(),
+  questions: z.array(z.string()).optional(),
+});
 
 /* ----------------------------------------------------------- normalisers */
 
@@ -203,11 +215,16 @@ export function planToDomain(event: EventRecord, plan: AiPlan): PlanConversion {
       phone: "",
       status: "prospect",
       quote: 0,
+      contractValue: 0,
+      depositAmount: 0,
       depositPaid: 0,
+      inquiryDate: "",
+      followUpDate: "",
       notes: line.why?.trim() ?? "",
-      questions: (line.questions ?? [])
+      checklist: (line.questions ?? [])
         .map((q) => q.trim())
-        .filter((q) => q.length > 0),
+        .filter((q) => q.length > 0)
+        .map((text) => ({ id: newId("q"), text, done: false })),
     }));
 
   const ideas: CreativeIdea[] = (plan.ideas ?? [])
@@ -307,6 +324,81 @@ export function useAi() {
         };
       } catch (error) {
         console.error("[celebre/ai] generation failed", error);
+        return {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Something went wrong while contacting Gemini.",
+        };
+      }
+    },
+    [generateAction],
+  );
+}
+
+/* ---------------------------------------------------------------- questions */
+
+export type AiQuestionsResult =
+  | { ok: true; questions: string[]; summary?: string }
+  | { ok: false; error: string };
+
+/**
+ * RFP question suggester: one vendor category in, one tailored inquiry
+ * checklist out. Same untrusted-boundary contract as `useAi` — the response
+ * is zod-validated and returned for review; the caller decides what (if
+ * anything) to write to the store.
+ */
+export function useAiQuestions() {
+  const generateAction = useAction(api.ai.generate);
+
+  return useCallback(
+    async (
+      event: EventRecord,
+      vendorCategory: string,
+      options?: { notes?: string },
+    ): Promise<AiQuestionsResult> => {
+      try {
+        const response = await generateAction({
+          kind: "questions",
+          eventName: event.name,
+          eventType: EVENT_TYPE_LABELS[event.type],
+          eventDate: event.date,
+          location: event.location,
+          guestCount: event.guestCount,
+          totalBudget: event.totalBudget,
+          currency: event.currency,
+          preferences: event.preferences,
+          vendorCategory,
+          notes: options?.notes,
+        });
+
+        if (!response.ok) return { ok: false, error: response.error };
+
+        const parsed = aiQuestionsSchema.safeParse(extractJson(response.text));
+        if (!parsed.success) {
+          return {
+            ok: false,
+            error:
+              "Gemini returned data that didn't match the expected structure. Try regenerating.",
+          };
+        }
+
+        const questions = (parsed.data.questions ?? [])
+          .map((question) => question.trim())
+          .filter((question) => question.length > 0 && question.length <= 500);
+
+        if (questions.length === 0) {
+          return {
+            ok: false,
+            error:
+              "Gemini returned an empty question list. Add more direction and regenerate.",
+          };
+        }
+
+        return { ok: true, questions, summary: parsed.data.summary };
+      } catch (error) {
+        console.error("[celebre/ai] question generation failed", error);
         return {
           ok: false,
           error:

@@ -9,6 +9,7 @@ import type {
   VendorStatus,
 } from "@/lib/types";
 import { daysUntil } from "@/lib/format";
+import { committedValue, vendorBalance } from "./vendor";
 
 /* --------------------------------------------------------------- budget */
 
@@ -378,26 +379,33 @@ export function milestoneStats(milestones: Milestone[]): {
 
 export interface VendorProgress {
   total: number;
+  /** Signed or deposit-paid — the pipeline's "confirmed" column. */
   confirmed: number;
   inProgress: number;
   percentBooked: number;
   byStatus: Record<VendorStatus, number>;
+  /** Pipeline value: every quote on file, signed or not. */
   quotedValue: number;
-  depositOutstanding: number;
+  /** Signed commitments only (contract value, falling back to the quote). */
+  contractedValue: number;
+  /** Deposits actually paid, counted once across all vendors. */
+  depositedTotal: number;
+  /** Contracted money not yet covered by a deposit — never double-counted. */
+  outstanding: number;
 }
 
 export function vendorProgress(vendors: Vendor[]): VendorProgress {
   const byStatus: Record<VendorStatus, number> = {
     prospect: 0,
-    contacted: 0,
+    inquiry: 0,
     quoted: 0,
-    booked: 0,
-    paid: 0,
+    contracted: 0,
+    deposit: 0,
   };
   for (const vendor of vendors) {
     byStatus[vendor.status] = (byStatus[vendor.status] ?? 0) + 1;
   }
-  const confirmed = byStatus.booked + byStatus.paid;
+  const confirmed = byStatus.contracted + byStatus.deposit;
   const total = vendors.length;
   return {
     total,
@@ -406,10 +414,9 @@ export function vendorProgress(vendors: Vendor[]): VendorProgress {
     percentBooked: total > 0 ? Math.round((confirmed / total) * 100) : 0,
     byStatus,
     quotedValue: vendors.reduce((acc, v) => acc + v.quote, 0),
-    depositOutstanding: vendors.reduce(
-      (acc, v) => acc + Math.max(v.quote - v.depositPaid, 0),
-      0,
-    ),
+    contractedValue: vendors.reduce((acc, v) => acc + committedValue(v), 0),
+    depositedTotal: vendors.reduce((acc, v) => acc + v.depositPaid, 0),
+    outstanding: vendors.reduce((acc, v) => acc + vendorBalance(v), 0),
   };
 }
 
