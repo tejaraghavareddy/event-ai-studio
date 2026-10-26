@@ -170,7 +170,7 @@ export default function Landing() {
             </Badge>
             <h1 className="font-heading text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.4rem]">
               Every celebration,
-              <span className="block text-gold">planned like a production.</span>
+              <span className="block text-gold-ink">planned like a production.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
               Celebré is the workspace where weddings, milestone birthdays,
@@ -237,7 +237,7 @@ export default function Landing() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="tabular text-3xl font-bold leading-none tracking-tight text-gold">
+                  <p className="tabular text-3xl font-bold leading-none tracking-tight text-gold-ink">
                     {days}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">days to go</p>
@@ -353,7 +353,7 @@ export default function Landing() {
             <div className="mb-3 h-px w-12 gold-rule" aria-hidden="true" />
             <h2 className="font-heading text-3xl font-bold tracking-tight">
               Gemini does the drafting.
-              <span className="block text-gold">You keep the pen.</span>
+              <span className="block text-gold-ink">You keep the pen.</span>
             </h2>
             <p className="mt-4 text-base leading-7 text-muted-foreground">
               AI in an planning studio is only useful if it respects the budget,
@@ -381,7 +381,7 @@ export default function Landing() {
                 {...fadeUp}
                 className="flex gap-5 rounded-lg border border-border bg-card p-6"
               >
-                <span className="tabular font-heading text-2xl font-bold leading-none text-gold/70">
+                <span className="tabular font-heading text-2xl font-bold leading-none text-gold-ink">
                   {step.number}
                 </span>
                 <div>

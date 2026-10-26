@@ -280,7 +280,7 @@ export function AiBudgetAllocationDialog({
                     <p className="tabular text-sm font-bold">
                       {formatMoney(line.amount, event.currency)}
                     </p>
-                    <p className="tabular text-[11px] font-semibold text-gold">
+                    <p className="tabular text-[11px] font-semibold text-gold-ink">
                       {line.percent}%
                     </p>
                   </div>

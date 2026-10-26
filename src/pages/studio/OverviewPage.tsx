@@ -255,7 +255,10 @@ export default function OverviewPage() {
             <CardContent className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
               <TooltipProvider delayDuration={200}>
                 <div className="relative mx-auto h-[180px] w-[180px]">
-                  <ResponsiveDonut data={donutData} />
+                  <ResponsiveDonut
+                    data={donutData}
+                    currency={event.currency}
+                  />
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span className="tabular text-2xl font-bold tracking-tight">
                       {Math.round(totals.actualRatio * 100)}%
@@ -467,7 +470,11 @@ export default function OverviewPage() {
       </div>
 
       {/* Quick AI actions */}
-      <motion.section {...fadeUp} aria-labelledby="quick-actions">
+      <motion.section
+        {...fadeUp}
+        aria-labelledby="quick-actions"
+        className="print:hidden"
+      >
         <div className="rounded-lg border border-border bg-surface/60 p-5">
           <div className="mb-4 flex items-center gap-2">
             <Sparkles className="size-4 text-gold" aria-hidden="true" />
@@ -564,8 +571,10 @@ function KpiCard({
 
 function ResponsiveDonut({
   data,
+  currency,
 }: {
   data: { name: string; value: number; color: string }[];
+  currency: string;
 }) {
   return (
     <PieChart width={180} height={180}>
@@ -584,7 +593,7 @@ function ResponsiveDonut({
         ))}
       </Pie>
       <ChartTooltip
-        formatter={(value) => Number(value).toLocaleString("en-US")}
+        formatter={(value) => formatMoney(Number(value), currency)}
         contentStyle={{
           borderRadius: 8,
           border: "1px solid #E8E2D9",

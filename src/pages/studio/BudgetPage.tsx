@@ -64,7 +64,7 @@ import {
 } from "@/lib/data/selectors";
 import type { CategoryView } from "@/lib/data/selectors";
 import { EventDialog } from "@/components/studio/EventDialog";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMoneyCompact } from "@/lib/format";
 import type { BudgetCategory, Expense } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -522,10 +522,7 @@ export default function BudgetPage() {
                   axisLine={{ stroke: "#E8E2D9" }}
                   tick={{ fontSize: 11, fill: "#44403C" }}
                   tickFormatter={(value: number) =>
-                    new Intl.NumberFormat("en-US", {
-                      notation: "compact",
-                      maximumFractionDigits: 1,
-                    }).format(value)
+                    formatMoneyCompact(Number(value), event.currency)
                   }
                 />
                 <YAxis
@@ -896,7 +893,7 @@ export default function BudgetPage() {
           {filtersActive ? (
             <button
               type="button"
-              className="ml-auto cursor-pointer font-semibold text-gold underline-offset-2 hover:underline"
+              className="ml-auto cursor-pointer font-semibold text-gold-ink underline-offset-2 hover:underline"
               onClick={clearExpenseFilters}
             >
               Clear filters

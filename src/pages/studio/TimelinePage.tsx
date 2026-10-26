@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Milestone, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Milestone, Pencil, Plus, Printer, Search, Trash2, TriangleAlert } from "lucide-react";
 import {
   AiGenerateButton,
   AiReviewDialog,
@@ -35,7 +35,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { store, useActiveEvent, useStudioState } from "@/lib/data/store";
-import { taskStats, timelineByPhase, milestoneStats } from "@/lib/data/selectors";
+import {
+  conflictsForItem,
+  taskStats,
+  timelineByPhase,
+  timelineConflicts,
+  milestoneStats,
+} from "@/lib/data/selectors";
 import { dueLabel, formatDateShort, formatDuration, formatTime } from "@/lib/format";
 import type { Milestone as MilestoneType, TimelineItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -129,6 +135,16 @@ export default function TimelinePage() {
     });
   }, [items, query, phaseFilter]);
 
+  const conflicts = useMemo(() => timelineConflicts(items), [items]);
+  const conflictIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const conflict of conflicts) {
+      ids.add(conflict.a.id);
+      ids.add(conflict.b.id);
+    }
+    return ids;
+  }, [conflicts]);
+
   if (!event) return null;
 
   const stats = taskStats(items);
@@ -187,6 +203,17 @@ export default function TimelinePage() {
         description={`Planning milestones plus the minute-by-minute ${formatDateShort(event.date)} schedule for ${event.name}.`}
         actions={
           <>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="cursor-pointer"
+              aria-label="Print run of show"
+              title="Print run of show"
+              onClick={() => window.print()}
+            >
+              <Printer className="size-4" aria-hidden="true" />
+            </Button>
             <AiGenerateButton
               busy={busy === "timeline"}
               label={PLAN_KIND_LABELS.timeline}
@@ -319,7 +346,7 @@ export default function TimelinePage() {
                     {milestone.title}
                   </label>
                   <span className="tabular hidden text-xs text-muted-foreground sm:block">
-                    {milestone.dueDate}
+                    {formatDateShort(milestone.dueDate)}
                   </span>
                   <StatusPill
                     label={dueLabel(milestone.dueDate)}
@@ -356,7 +383,7 @@ export default function TimelinePage() {
           <h2 id="run-of-show-heading" className="text-sm font-bold tracking-tight">
             Run of show · {formatDateShort(event.date)}
           </h2>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <div className="relative">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -385,6 +412,44 @@ export default function TimelinePage() {
             </Select>
           </div>
         </div>
+
+        {conflicts.length > 0 ? (
+          <div
+            className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3"
+            aria-live="polite"
+          >
+            <TriangleAlert
+              className="mt-0.5 size-4 shrink-0 text-destructive"
+              aria-hidden="true"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-destructive">
+                {conflicts.length}{" "}
+                {conflicts.length === 1 ? "schedule conflict" : "schedule conflicts"}{" "}
+                to resolve
+              </p>
+              <ul className="mt-1 space-y-0.5 text-xs leading-5 text-muted-foreground">
+                {conflicts.slice(0, 3).map((conflict) => (
+                  <li key={`${conflict.a.id}-${conflict.b.id}`}>
+                    <span className="font-medium text-foreground">
+                      {conflict.a.title}
+                    </span>{" "}
+                    ({formatTime(conflict.a.startTime)}–{formatTime(conflict.a.endTime)})
+                    overlaps{" "}
+                    <span className="font-medium text-foreground">
+                      {conflict.b.title}
+                    </span>{" "}
+                    ({formatTime(conflict.b.startTime)}–{formatTime(conflict.b.endTime)})
+                    by {conflict.minutes} min on {formatDateShort(conflict.a.day)}.
+                  </li>
+                ))}
+                {conflicts.length > 3 ? (
+                  <li>…and {conflicts.length - 3} more.</li>
+                ) : null}
+              </ul>
+            </div>
+          </div>
+        ) : null}
 
         {items.length === 0 ? (
           <EmptyState
@@ -487,6 +552,9 @@ export default function TimelinePage() {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <StatusPill label={item.phase} tone="muted" />
+                        {conflictIds.has(item.id) ? (
+                          <StatusPill label="Overlap" tone="danger" />
+                        ) : null}
                         <IconAction
                           label={`Edit ${item.title}`}
                           onClick={() => openItemDialog(item)}
@@ -515,6 +583,7 @@ export default function TimelinePage() {
         onOpenChange={setItemDialogOpen}
         item={editingItem}
         eventDate={event.date}
+        others={items}
         onSave={saveItem}
       />
 
@@ -588,12 +657,15 @@ function ItemDialog({
   onOpenChange,
   item,
   eventDate,
+  others,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: TimelineItem | null;
   eventDate: string;
+  /** Every existing item on this event — used to warn about double-booking. */
+  others: TimelineItem[];
   onSave: (form: ItemForm) => void;
 }) {
   const [form, setForm] = useState<ItemForm>(() => toItemForm(item, eventDate));
@@ -606,6 +678,24 @@ function ItemDialog({
       setErrors({});
     }
   }
+
+  // Non-blocking warning: the item can still be saved, but the user is told
+  // when these times already belong to something else on the schedule.
+  const clashes = conflictsForItem(
+    {
+      id: item?.id ?? "draft",
+      eventId: item?.eventId ?? "",
+      title: form.title.trim() || "Untitled item",
+      day: form.day || eventDate,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      phase: form.phase,
+      owner: form.owner,
+      notes: form.notes,
+      done: item?.done ?? false,
+    },
+    others.filter((other) => other.id !== item?.id),
+  );
 
   const set = <K extends keyof ItemForm>(key: K, value: ItemForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -685,6 +775,28 @@ function ItemDialog({
               />
             </Field>
           </div>
+
+          {clashes.length > 0 ? (
+            <div
+              className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium leading-5 text-destructive"
+              role="status"
+            >
+              {clashes.slice(0, 2).map((clash) => {
+                const other =
+                  clash.a.id === (item?.id ?? "draft") ? clash.b : clash.a;
+                return (
+                  <p key={`${clash.a.id}-${clash.b.id}`}>
+                    Overlaps “{other.title}” ({formatTime(other.startTime)}–
+                    {formatTime(other.endTime)}) by {clash.minutes} min. Adjust one
+                    of the times to avoid a double-booking.
+                  </p>
+                );
+              })}
+              {clashes.length > 2 ? (
+                <p>…and {clashes.length - 2} more overlapping items.</p>
+              ) : null}
+            </div>
+          ) : null}
 
           <Field label="Owner" htmlFor="item-owner" hint="Who is responsible when this runs.">
             <Input

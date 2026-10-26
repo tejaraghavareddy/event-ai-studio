@@ -350,6 +350,141 @@ export function taskStats(items: TimelineItem[]): {
   return { total, done, percent: total > 0 ? Math.round((done / total) * 100) : 0 };
 }
 
+/* ------------------------------------------------- schedule conflicts */
+
+export interface TimelineConflict {
+  /** The two items that double-book the same window. */
+  a: TimelineItem;
+  b: TimelineItem;
+  /** Length of the overlap in minutes. */
+  minutes: number;
+}
+
+interface Window {
+  start: number;
+  end: number;
+}
+
+function toMinutes(hhmm: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+/**
+ * Clock windows an item occupies on its day. An item whose end time is at or
+ * before its start runs past midnight, so it is split into the two segments
+ * that actually fall on that calendar day.
+ */
+function itemWindows(item: TimelineItem): Window[] {
+  const start = toMinutes(item.startTime);
+  const end = toMinutes(item.endTime);
+  if (start === null || end === null || start === end) return [];
+  if (end > start) return [{ start, end }];
+  return [
+    { start, end: 24 * 60 },
+    { start: 0, end },
+  ];
+}
+
+function overlaps(a: Window, b: Window): number {
+  const minutes = Math.min(a.end, b.end) - Math.max(a.start, b.start);
+  return minutes > 0 ? minutes : 0;
+}
+
+/** True when one window fully swallows the other (a container item). */
+function contains(a: Window, b: Window): boolean {
+  return a.start <= b.start && b.end <= a.end;
+}
+
+/**
+ * Finds run-of-show items that double-book each other on the same day.
+ *
+ * Rules, tuned for real schedules rather than a naive interval sweep:
+ *
+ * - items only compete with items on the same `day`;
+ * - touching items (one ends as the next begins) are fine;
+ * - a window that fully contains another is *not* a conflict — "Gates open
+ *   11:00–17:30" legitimately holds the stage sets inside it;
+ * - two items with identical windows, or partially overlapping ones (A starts
+ *   inside B but finishes outside it), are flagged.
+ *
+ * Returns pairs sorted by day, then by start time.
+ */
+export function timelineConflicts(items: TimelineItem[]): TimelineConflict[] {
+  const byDay = new Map<string, { item: TimelineItem; windows: Window[] }[]>();
+  for (const item of items) {
+    const windows = itemWindows(item);
+    if (windows.length === 0) continue;
+    const day = item.day || "";
+    const bucket = byDay.get(day);
+    if (bucket) bucket.push({ item, windows });
+    else byDay.set(day, [{ item, windows }]);
+  }
+
+  const conflicts: TimelineConflict[] = [];
+  for (const bucket of byDay.values()) {
+    for (let i = 0; i < bucket.length; i++) {
+      for (let j = i + 1; j < bucket.length; j++) {
+        const left = bucket[i];
+        const right = bucket[j];
+        let minutes = 0;
+        for (const a of left.windows) {
+          for (const b of right.windows) {
+            const shared = overlaps(a, b);
+            if (shared === 0) continue;
+            const sameWindow =
+              a.start === b.start && a.end === b.end;
+            if (sameWindow || (!contains(a, b) && !contains(b, a))) {
+              minutes = Math.max(minutes, shared);
+            }
+          }
+        }
+        if (minutes > 0) {
+          const first = left.item.startTime.localeCompare(right.item.startTime);
+          conflicts.push(
+            first <= 0
+              ? { a: left.item, b: right.item, minutes }
+              : { a: right.item, b: left.item, minutes },
+          );
+        }
+      }
+    }
+  }
+
+  return conflicts.sort(
+    (x, y) =>
+      (x.a.day || "").localeCompare(y.a.day || "") ||
+      x.a.startTime.localeCompare(y.a.startTime),
+  );
+}
+
+/** Ids of every item involved in at least one conflict. */
+export function conflictingItemIds(items: TimelineItem[]): Set<string> {
+  const ids = new Set<string>();
+  for (const conflict of timelineConflicts(items)) {
+    ids.add(conflict.a.id);
+    ids.add(conflict.b.id);
+  }
+  return ids;
+}
+
+/**
+ * Conflicts the given item would create against the others — used by the item
+ * dialog to warn about a double-booking before it is saved.
+ */
+export function conflictsForItem(
+  candidate: TimelineItem,
+  others: TimelineItem[],
+): TimelineConflict[] {
+  return timelineConflicts([...others, candidate]).filter(
+    (conflict) => conflict.a.id === candidate.id || conflict.b.id === candidate.id,
+  );
+}
+
 /* ------------------------------------------------------------ milestones */
 
 export function upcomingMilestones(

@@ -46,6 +46,7 @@
   --color-surface-deep: var(--surface-deep);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-gold-ink: var(--gold-ink);
   --color-ink: var(--ink);
   --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     sans-serif;
@@ -81,6 +82,9 @@
   --ring: #c5a059;
   --gold: #c5a059;
   --gold-soft: #f3e9d6;
+  /* Gold as *text* on light surfaces — 5.5:1 against the parchment
+     backgrounds, so labels and links stay readable (WCAG AA). */
+  --gold-ink: #7a6128;
 
   --chart-1: #c5a059;
   --chart-2: #2a2520;
@@ -122,6 +126,8 @@
   --ring: #c5a059;
   --gold: #d4b478;
   --gold-soft: #3a3222;
+  /* On the dark palette the champagne tone is already high contrast. */
+  --gold-ink: #d4b478;
 
   --chart-1: #d4b478;
   --chart-2: #e8dcc4;

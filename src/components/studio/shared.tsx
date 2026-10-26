@@ -41,7 +41,7 @@ export function Field({
     <div className={cn("space-y-1.5", className)}>
       <Label htmlFor={htmlFor} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
-        {required ? <span className="ml-0.5 text-gold">*</span> : null}
+        {required ? <span className="ml-0.5 text-gold-ink">*</span> : null}
       </Label>
       {children}
       {hint && !error ? (
@@ -78,7 +78,11 @@ export function PageHeader({
           </p>
         ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 print:hidden">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

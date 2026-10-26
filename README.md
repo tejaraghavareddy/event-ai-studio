@@ -123,7 +123,7 @@ in its place.
 | --- | --- |
 | `/dashboard/overview` | Event identity, days until, budget KPIs, spend chart, vendor progress, upcoming milestones, AI quick actions |
 | `/dashboard/budget` | Editable categories (allocated / committed / paid), searchable table, over-allocation warnings, allocation-vs-commitment chart |
-| `/dashboard/timeline` | Planning milestones checklist plus a phase-grouped, searchable run of show with owners, durations and check-offs |
+| `/dashboard/timeline` | Planning milestones checklist plus a phase-grouped, searchable run of show with owners, durations and check-offs — overlapping items are flagged as conflicts (nested container windows are allowed) and the schedule prints cleanly from the page header |
 | `/dashboard/vendors` | Vendor pipeline (Prospect → Inquiry Sent → Quoted → Contract Signed → Deposit Paid), quoted/contracted/deposited/outstanding totals, follow-up dates, per-vendor inquiry checklists with copy/edit/tick, AI RFP question suggester, search / category / status filters and sorting |
 | `/dashboard/studio` | Editorial moodboard across 8 creative categories (themes, palettes with hex swatches, decor, menus, activities, music, guest experiences, signature drinks) — category-by-category or cohesive-concept generation, refine/alternatives on any idea, favorites, copy, markdown brief export, edit/delete |
 | `/dashboard/settings` | Event details, workspace export/import, reset to demo data, delete event / clear workspace |
@@ -210,6 +210,8 @@ Warm editorial luxury, defined once in `src/index.css`:
 - Backgrounds `#FAF8F5` / `#F3EFEA`, cards `#FFFFFF`
 - Champagne gold `#C5A059`, ink text `#1C1917`, secondary `#44403C`,
   borders `#E8E2D9`
+- A darker gold ink (`--gold-ink`, `#7A6128`) is used wherever champagne
+  becomes *text* on parchment, so labels and links clear WCAG AA
 - Plus Jakarta Sans (headings) + DM Sans (body)
 - Restrained shadows, thin borders, tight radii, tabular figures for every
   financial column
@@ -224,6 +226,16 @@ bun run build              # typecheck + production build
 bun run lint               # eslint
 bunx tsc -b --noEmit       # frontend typecheck only
 bun run typecheck:server   # server typecheck only
+```
+
+### Running it locally
+
+```bash
+bun install                       # dependencies
+bun convex dev --once             # Convex types (first run)
+cp env.example .env               # add GEMINI_API_KEY for AI features
+bun run dev                       # app on http://localhost:5173
+bun run server                    # Gemini API on http://localhost:8787
 ```
 
 ## Notes & limitations

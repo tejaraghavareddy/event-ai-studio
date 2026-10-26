@@ -391,7 +391,7 @@ export function AiReviewDialog({
                     </div>
                     {idea.rationale ? (
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        <span className="font-semibold text-gold">Why it works: </span>
+                        <span className="font-semibold text-gold-ink">Why it works: </span>
                         {idea.rationale}
                       </p>
                     ) : null}

@@ -473,7 +473,7 @@ function PlanChoiceCards({
             <span
               className={cn(
                 "flex size-11 items-center justify-center rounded-full bg-surface",
-                selected ? "bg-gold-soft text-gold" : "text-foreground",
+                selected ? "bg-gold-soft text-gold-ink" : "text-foreground",
               )}
             >
               {option.icon}

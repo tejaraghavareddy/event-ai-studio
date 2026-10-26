@@ -578,7 +578,9 @@ function IdeaCard({
           title={idea.favorite ? "Remove from favorites" : "Save to favorites"}
           className={cn(
             "rounded p-1 transition-colors",
-            idea.favorite ? "text-gold" : "text-muted-foreground hover:text-gold",
+            idea.favorite
+              ? "text-gold-ink"
+              : "text-muted-foreground hover:text-gold-ink",
           )}
         >
           <Star className={cn("size-4", idea.favorite && "fill-current")} aria-hidden="true" />
@@ -592,7 +594,7 @@ function IdeaCard({
 
       {idea.rationale ? (
         <div className="mt-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gold">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gold-ink">
             Why it works
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{idea.rationale}</p>
@@ -645,7 +647,7 @@ function IdeaCard({
 
       {idea.implementationNotes ? (
         <details className="group mt-3">
-          <summary className="cursor-pointer list-none text-xs font-semibold text-foreground/80 transition-colors hover:text-gold">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-foreground/80 transition-colors hover:text-gold-ink">
             <span className="group-open:hidden">＋ Implementation notes</span>
             <span className="hidden group-open:inline">－ Implementation notes</span>
           </summary>

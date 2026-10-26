@@ -243,7 +243,7 @@ export function AppSidebar() {
   return (
     <aside
       aria-label="Studio navigation"
-      className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-sidebar-border bg-sidebar md:block"
+      className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-sidebar-border bg-sidebar md:block print:hidden"
     >
       <SidebarContent />
     </aside>

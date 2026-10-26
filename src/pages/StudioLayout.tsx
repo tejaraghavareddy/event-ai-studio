@@ -30,25 +30,37 @@ export default function StudioLayout() {
       <AppSidebar />
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden print:hidden">
         <Brand markClassName="size-6" wordmarkClassName="text-[1.05rem]" />
-        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetTrigger asChild>
-            <Button type="button" variant="outline" size="icon" aria-label="Open navigation">
-              <Menu className="size-4" aria-hidden="true" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Studio navigation</SheetTitle>
-            </SheetHeader>
-            <SidebarContent onNavigate={() => setMobileNavOpen(false)} />
-          </SheetContent>
-        </Sheet>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Create a new event"
+            title="New event"
+            onClick={() => setWizardOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </Button>
+          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+            <SheetTrigger asChild>
+              <Button type="button" variant="outline" size="icon" aria-label="Open navigation">
+                <Menu className="size-4" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Studio navigation</SheetTitle>
+              </SheetHeader>
+              <SidebarContent onNavigate={() => setMobileNavOpen(false)} />
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
 
-      <div className="md:pl-64">
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+      <div className="md:pl-64 print:pl-0">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10 print:px-0 print:py-0">
           {events.length === 0 ? (
             <div className="pt-6">
               <EmptyState

@@ -42,6 +42,7 @@ export default function SettingsPage() {
 
   const recordCount =
     state.budgetCategories.length +
+    state.expenses.length +
     state.timelineItems.length +
     state.milestones.length +
     state.vendors.length +
@@ -52,10 +53,8 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `celebre-${event.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")}.json`;
+    // The file holds the whole workspace (every event), not just this one.
+    anchor.download = "celebre-workspace.json";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -69,6 +68,7 @@ export default function SettingsPage() {
       const parsed = JSON.parse(text) as {
         events?: unknown[];
         budgetCategories?: unknown[];
+        expenses?: unknown[];
         timelineItems?: unknown[];
         milestones?: unknown[];
         vendors?: unknown[];
@@ -83,6 +83,7 @@ export default function SettingsPage() {
       const eventCount = parsed.events.length;
       const records =
         (parsed.budgetCategories?.length ?? 0) +
+        (parsed.expenses?.length ?? 0) +
         (parsed.timelineItems?.length ?? 0) +
         (parsed.milestones?.length ?? 0) +
         (parsed.vendors?.length ?? 0) +
