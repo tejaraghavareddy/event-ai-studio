@@ -15,6 +15,8 @@ import type {
 import { newId } from "@/lib/types";
 import { store } from "@/lib/data/store";
 import { parseCostRange } from "@/lib/data/idea";
+import { callGemini, resolveAiBase } from "./transport";
+import type { PlanKind } from "./transport";
 
 /**
  * Client-side AI layer.
@@ -26,14 +28,7 @@ import { parseCostRange } from "@/lib/data/idea";
  * user explicitly applies it.
  */
 
-export type PlanKind =
-  | "plan"
-  | "budget"
-  | "timeline"
-  | "vendors"
-  | "ideas"
-  | "questions"
-  | "concept";
+export type { PlanKind };
 
 /* ------------------------------------------------------- response schemas */
 
@@ -318,11 +313,116 @@ export type AiResult =
   | { ok: true; plan: AiPlan; conversion: PlanConversion; summary?: string }
   | { ok: false; error: string };
 
+/* ------------------------------------------------------------- transport */
+
+/** Flat request body shared by the Express endpoints and the Convex action. */
+export interface AiRequestPayload {
+  kind: PlanKind;
+  eventName: string;
+  eventType: string;
+  eventDate: string;
+  location: string;
+  guestCount: number;
+  totalBudget: number;
+  currency: string;
+  preferences?: string;
+  existingCategories?: string[];
+  notes?: string;
+  vendorCategory?: string;
+  ideaCategory?: string;
+  season?: string;
+}
+
+export interface AiRequestOptions {
+  notes?: string;
+  existingCategoryNames?: string[];
+  /** Creative category to focus idea/concept generation on. */
+  ideaCategory?: string;
+  /** Vendor category for the RFP question suggester. */
+  vendorCategory?: string;
+}
+
+/**
+ * Turns the active event into the request payload, defensively: imported or
+ * hand-edited data must never produce an invalid request.
+ */
+export function buildContext(
+  kind: PlanKind,
+  event: EventRecord,
+  options: AiRequestOptions = {},
+): AiRequestPayload {
+  const date = event.date?.trim();
+  return {
+    kind,
+    eventName: event.name.trim() || "Untitled event",
+    eventType: EVENT_TYPE_LABELS[event.type] ?? "Event",
+    eventDate: /^\d{4}-\d{2}-\d{2}$/.test(date ?? "")
+      ? (date as string)
+      : new Date().toISOString().slice(0, 10),
+    location: (event.location ?? "").trim(),
+    guestCount: Math.max(0, Math.round(Number(event.guestCount) || 0)),
+    totalBudget: Math.max(0, Number(event.totalBudget) || 0),
+    currency: (event.currency || "USD").trim(),
+    preferences: event.preferences?.trim() || undefined,
+    existingCategories: options.existingCategoryNames?.length
+      ? options.existingCategoryNames
+      : undefined,
+    notes: options.notes?.trim() || undefined,
+    vendorCategory: options.vendorCategory?.trim() || undefined,
+    ideaCategory: options.ideaCategory?.trim() || undefined,
+    season: seasonForDate(event.date),
+  };
+}
+
+type AiResponse = { ok: true; data: unknown } | { ok: false; error: string };
+
+/**
+ * One request, two transports:
+ *
+ * 1. the Express backend (`server/`) — the primary path, configured through
+ *    `VITE_AI_API_BASE` and defaulted to http://localhost:8787/api/gemini;
+ * 2. the Convex Gemini action — used only when no backend was explicitly
+ *    configured and none answered, so a Vite-only environment keeps working.
+ *
+ * A real error from the configured server (validation, rate limit, Gemini
+ * failure) is always surfaced as-is; nothing is invented on its behalf.
+ */
+function useAiRequest() {
+  const generateAction = useAction(api.ai.generate);
+
+  return useCallback(
+    async (kind: PlanKind, payload: AiRequestPayload): Promise<AiResponse> => {
+      const result = await callGemini(kind, payload);
+      if (result.ok) return { ok: true, data: result.data };
+
+      const explicit = resolveAiBase().explicit;
+      if (result.unreachable && !explicit) {
+        console.info(
+          "[celebre/ai] Gemini backend not reachable — using the Convex action instead",
+        );
+        try {
+          const response = await generateAction(payload);
+          if (response.ok) return { ok: true, data: extractJson(response.text) };
+          return { ok: false, error: response.error };
+        } catch (error) {
+          console.error("[celebre/ai] fallback generation failed", error);
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : result.error,
+          };
+        }
+      }
+
+      return { ok: false, error: result.error };
+    },
+    [generateAction],
+  );
+}
+
 /* ------------------------------------------------------------------- hook */
 
 export function useAi() {
-  const generateAction = useAction(api.ai.generate);
-
+  const runRequest = useAiRequest();
   return useCallback(
     async (
       kind: PlanKind,
@@ -335,25 +435,10 @@ export function useAi() {
       },
     ): Promise<AiResult> => {
       try {
-        const response = await generateAction({
-          kind,
-          eventName: event.name,
-          eventType: EVENT_TYPE_LABELS[event.type],
-          eventDate: event.date,
-          location: event.location,
-          guestCount: event.guestCount,
-          totalBudget: event.totalBudget,
-          currency: event.currency,
-          preferences: event.preferences,
-          existingCategories: options?.existingCategoryNames,
-          notes: options?.notes,
-          ideaCategory: options?.ideaCategory,
-          season: seasonForDate(event.date),
-        });
-
+        const response = await runRequest(kind, buildContext(kind, event, options));
         if (!response.ok) return { ok: false, error: response.error };
 
-        const parsed = aiPlanSchema.safeParse(extractJson(response.text));
+        const parsed = aiPlanSchema.safeParse(response.data);
         if (!parsed.success) {
           const issue = parsed.error.issues[0];
           const where = issue?.path.join(".") || "response";
@@ -396,7 +481,7 @@ export function useAi() {
         };
       }
     },
-    [generateAction],
+    [runRequest],
   );
 }
 
@@ -413,7 +498,7 @@ export type AiQuestionsResult =
  * anything) to write to the store.
  */
 export function useAiQuestions() {
-  const generateAction = useAction(api.ai.generate);
+  const runRequest = useAiRequest();
 
   return useCallback(
     async (
@@ -422,23 +507,13 @@ export function useAiQuestions() {
       options?: { notes?: string },
     ): Promise<AiQuestionsResult> => {
       try {
-        const response = await generateAction({
-          kind: "questions",
-          eventName: event.name,
-          eventType: EVENT_TYPE_LABELS[event.type],
-          eventDate: event.date,
-          location: event.location,
-          guestCount: event.guestCount,
-          totalBudget: event.totalBudget,
-          currency: event.currency,
-          preferences: event.preferences,
-          vendorCategory,
-          notes: options?.notes,
-        });
-
+        const response = await runRequest(
+          "questions",
+          buildContext("questions", event, { ...options, vendorCategory }),
+        );
         if (!response.ok) return { ok: false, error: response.error };
 
-        const parsed = aiQuestionsSchema.safeParse(extractJson(response.text));
+        const parsed = aiQuestionsSchema.safeParse(response.data);
         if (!parsed.success) {
           return {
             ok: false,
@@ -471,7 +546,7 @@ export function useAiQuestions() {
         };
       }
     },
-    [generateAction],
+    [runRequest],
   );
 }
 

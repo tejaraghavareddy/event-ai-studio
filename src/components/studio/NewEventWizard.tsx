@@ -32,7 +32,6 @@ import { store } from "@/lib/data/store";
 import { useAi } from "@/lib/ai/client";
 import type { PlanConversion } from "@/lib/ai/client";
 import {
-  NEW_EVENT_KINDS,
   NEW_EVENT_KIND_LABELS,
   newId,
 } from "@/lib/types";

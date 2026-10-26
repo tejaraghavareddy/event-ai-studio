@@ -11,20 +11,73 @@ your plan.
 
 - **Frontend** — React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Lucide icons,
   Recharts, Framer Motion, React Router v7
-- **Backend / AI** — Convex (serverless functions + auth), with Google Gemini
-  (`@google/genai`) called from a **server-side Node action**
-  (`src/convex/ai.ts`)
+- **Backend / AI** — a **Node.js + Express API** (`server/`) that owns every
+  Google Gemini call through the official `@google/genai` SDK, plus Convex
+  (serverless functions + auth). The Convex Node action (`src/convex/ai.ts`)
+  remains as a fallback transport for Vite-only environments
 - **Persistence** — `localStorage` behind a typed, swappable data layer
   (`src/lib/data/`), with JSON export/import so a database adapter can replace
   it later without touching the modules
 - **Auth** — Convex Auth (email OTP + guest/anonymous), already wired
 
-> **Why a Convex action instead of an Express server?** The security requirement
-> is "no exposed API keys": Gemini must be called from a server-side runtime.
-> This project runs on Vite + Convex, so the server-side endpoint is a Convex
-> Node action that reads `GEMINI_API_KEY` from deployment environment
-> variables. The client never sees the key; it calls `api.ai.generate` and
-> receives validated JSON only.
+## The Gemini backend (`server/`)
+
+Gemini is called only from a server runtime. `GEMINI_API_KEY` lives in the
+server's environment and is never bundled, returned, or logged.
+
+```bash
+cp env.example .env   # fill in GEMINI_API_KEY — placeholders only in the repo
+bun run server        # http://localhost:8787
+```
+
+| Endpoint | Returns |
+| --- | --- |
+| `POST /api/gemini/plan` | complete plan — summary, budget, milestones, run of show, vendors, ideas |
+| `POST /api/gemini/budget` | category allocations that sum to at most the event budget |
+| `POST /api/gemini/timeline` | day-of run of show plus planning milestones |
+| `POST /api/gemini/vendors` | vendor categories with ideal-supplier profiles and inquiry questions; `kind: "questions"` returns the flat RFP checklist |
+| `POST /api/gemini/ideas` | creative ideas; `kind: "concept"` returns one cohesive concept |
+
+Every request runs the same pipeline: zod validation with input limits →
+32 KB body cap → per-IP rate limit → CORS allowlist → Gemini → the response is
+parsed and re-validated against typed schemas → consistent envelope:
+
+```jsonc
+{ "ok": true,  "kind": "budget", "model": "gemini-2.5-flash", "data": { /* … */ } }
+{ "ok": false, "error": { "code": "RATE_LIMITED", "message": "Too many AI requests. Try again in 12s." } }
+```
+
+Malformed model output, empty results, upstream failures, a missing key and
+oversized bodies all return real error codes — a failed call is never dressed
+up as a success.
+
+### Getting an API key
+
+1. Open Google AI Studio: <https://aistudio.google.com/apikey>
+2. **Create API key** → copy it.
+3. Paste it into `.env` as `GEMINI_API_KEY` (see `env.example`), never as a
+   `VITE_` variable — anything prefixed `VITE_` is bundled into the browser
+   build.
+4. Restart `bun run server`.
+
+### Choosing a model
+
+Set `GEMINI_MODEL` to any model your key can use
+(<https://ai.google.dev/gemini-api/docs/models>). Leave it blank and the server
+asks the API which models are available to your key and picks a flash model; if
+nothing can be listed it falls back to `gemini-2.5-flash` and logs a warning.
+An unavailable id comes back as a `MODEL_UNAVAILABLE` error that tells you to
+change `GEMINI_MODEL`.
+
+### Frontend transport
+
+The studio's AI buttons post to `VITE_AI_API_BASE` (default
+`http://localhost:8787/api/gemini`) through `src/lib/ai/transport.ts`, which
+parses the envelope before anything is trusted. If that base was **not**
+configured explicitly and nothing answers there, the client falls back to the
+Convex action so a Vite-only environment still works. With an explicit base,
+errors (validation, 429, Gemini failures) surface as-is with retry — no silent
+fallback, no invented output.
 
 ## Getting started
 
@@ -32,24 +85,29 @@ your plan.
 bun install            # install dependencies
 bun convex dev --once  # generate Convex types / push functions
 bun run dev            # start the Vite dev server
+bun run server         # start the Gemini backend (separate terminal)
 ```
 
 ### Environment variables
 
-| Where | Variable | Purpose |
-| --- | --- | --- |
-| Vite (client) | `VITE_CONVEX_URL` | Convex deployment URL (already set in this environment) |
-| Convex (server) | `GEMINI_API_KEY` | Google AI Studio key used by `src/convex/ai.ts` |
-| Convex (server, optional) | `GEMINI_MODEL` | Overrides the default `gemini-2.5-flash` |
+Template file: `env.example` (placeholders only — copy it to `.env`).
 
-Set the Gemini key on your Convex deployment:
+| Where | Variable | Required | Purpose |
+| --- | --- | --- | --- |
+| Express (`server/`) | `GEMINI_API_KEY` | yes, for AI | Google AI Studio key; server-side only |
+| Express (`server/`) | `GEMINI_MODEL` | no | Model id; blank = auto-discover one available to the key |
+| Express (`server/`) | `PORT` | no | Listen port (default `8787`) |
+| Express (`server/`) | `CORS_ORIGIN` | no | Allowed origins, comma separated or `*` (default `http://localhost:5173,http://127.0.0.1:5173`) |
+| Express (`server/`) | `AI_BODY_LIMIT` | no | Max request body (default `32kb`) |
+| Express (`server/`) | `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_MS` | no | Rate limit (default `20` / `60000`) |
+| Express (`server/`) | `GEMINI_TIMEOUT_MS` | no | Per-request Gemini timeout (default `60000`) |
+| Vite (client) | `VITE_AI_API_BASE` | no | AI base URL (default `http://localhost:8787/api/gemini`) |
+| Vite (client) | `VITE_CONVEX_URL` | yes | Convex deployment URL |
+| Convex (fallback) | `GEMINI_API_KEY` / `GEMINI_MODEL` | no | Used only by the fallback action: `bunx convex env set GEMINI_API_KEY "your-key-here"` |
 
-```bash
-bunx convex env set GEMINI_API_KEY "your-key-here"
-```
-
-If the key is missing, the app keeps working — AI buttons return a clear,
-actionable error instead of failing silently.
+If `GEMINI_API_KEY` is missing, the app keeps working: AI buttons return a
+clear, actionable error instead of failing silently, and nothing is fabricated
+in its place.
 
 ## Using the studio
 
@@ -78,8 +136,9 @@ follows the same pipeline:
 
 1. **Context** — event type, date (plus the derived season), location, guest
    count, total budget, currency, stated preferences and existing budget
-   categories are sent to the server-side action; idea requests can focus on a
-   single creative category or ask for one cohesive concept.
+   categories are sent to the matching `POST /api/gemini/*` endpoint; idea
+   requests can focus on a single creative category or ask for one cohesive
+   concept.
 2. **Generation** — Gemini is instructed to return strict JSON that respects
    the budget and avoids invented vendor names.
 3. **Validation** — the response is parsed (fence-stripped, JSON-extracted) and
@@ -95,15 +154,27 @@ actionable messages.
 ## Architecture
 
 ```
+server/
+├── src/
+│   ├── index.ts              # Express bootstrap (dotenv, config, listen)
+│   ├── app.ts                # the five /api/gemini/* routes + middleware
+│   ├── schemas.ts            # typed request/response contracts + limits
+│   ├── prompt.ts             # system instruction + per-task JSON schema
+│   ├── gemini.ts             # @google/genai client, model resolution, errors
+│   ├── rateLimit.ts          # per-IP fixed-window limiter
+│   └── config.ts             # env parsing (never leaks the key)
+└── *.test.ts                 # endpoint, schema, rate-limit, config tests
+
 src/
 ├── convex/
-│   ├── ai.ts                 # "use node" Gemini action (server-side key)
+│   ├── ai.ts                 # "use node" Gemini action (fallback transport)
 │   ├── auth.ts, http.ts      # Convex Auth (read-only template files)
 │   └── schema.ts             # auth schema
 ├── lib/
 │   ├── types.ts              # domain models (EventRecord, BudgetCategory, …)
 │   ├── format.ts             # money / date / time formatting (tabular figures)
 │   ├── ai/
+│   │   ├── transport.ts      # HTTP client for the Express backend + envelope
 │   │   └── client.ts         # zod schemas, normalisers, converters, apply
 │   └── data/
 │       ├── seed.ts           # three realistic demo events
@@ -146,10 +217,13 @@ Warm editorial luxury, defined once in `src/index.css`:
 ## Scripts
 
 ```bash
-bun run dev          # Vite dev server
-bun run build        # typecheck + production build
-bun run lint         # eslint
-bunx tsc -b --noEmit # typecheck only
+bun run dev                # Vite dev server
+bun run server             # Gemini backend (Express)
+bun run test               # vitest — includes server endpoint/schema tests
+bun run build              # typecheck + production build
+bun run lint               # eslint
+bunx tsc -b --noEmit       # frontend typecheck only
+bun run typecheck:server   # server typecheck only
 ```
 
 ## Notes & limitations
@@ -157,5 +231,10 @@ bunx tsc -b --noEmit # typecheck only
 - Single-user by design for this version: data lives in the browser. Export /
   Import in Settings is the backup path, and the data layer is shaped for a
   future database.
-- AI features require `GEMINI_API_KEY` on the Convex deployment; everything
-  else works fully offline.
+- AI features require `GEMINI_API_KEY` in the Express server's environment
+  (`bun run server`); the Convex action fallback can hold its own copy. Without
+  a key everything else works fully offline and AI buttons explain exactly what
+  to fix.
+- The live Gemini call itself needs a real key, so it is covered by typed
+  schemas, mocked-endpoint tests and the error classifier rather than a live
+  network test.

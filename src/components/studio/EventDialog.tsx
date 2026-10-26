@@ -25,7 +25,6 @@ import type {
   EventInput,
   EventType,
   EventRecord,
-  NewEventDetails,
 } from "@/lib/types";
 
 const CURRENCIES = [
