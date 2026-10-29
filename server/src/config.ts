@@ -22,9 +22,26 @@ export interface ServerConfig {
   rateLimit: { windowMs: number; max: number };
   /** Upper bound on a single Gemini call. */
   requestTimeoutMs: number;
+  /**
+   * Express `trust proxy` setting. Off by default: with it off, `req.ip` (the
+   * rate-limit key) is the socket address, which cannot be spoofed. Turn it on
+   * (`TRUST_PROXY=true` or a hop count) only when the server runs behind a
+   * reverse proxy you control, otherwise clients could forge
+   * `X-Forwarded-For` and mint fresh rate-limit buckets at will.
+   */
+  trustProxy: boolean | number;
 }
 
 const DEFAULT_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
+
+/** `TRUST_PROXY`: off unless explicitly enabled (see `ServerConfig.trustProxy`). */
+function trustProxyFrom(env: NodeJS.ProcessEnv): boolean | number {
+  const raw = (env.TRUST_PROXY ?? "").trim().toLowerCase();
+  if (raw === "" || raw === "false" || raw === "off" || raw === "0") return false;
+  if (raw === "true" || raw === "on") return true;
+  const hops = Number(raw);
+  return Number.isInteger(hops) && hops > 0 ? hops : false;
+}
 
 function intOr(env: NodeJS.ProcessEnv, key: string, fallback: number): number {
   const raw = env[key];
@@ -56,5 +73,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       max: intOr(env, "AI_RATE_LIMIT_MAX", 20),
     },
     requestTimeoutMs: intOr(env, "GEMINI_TIMEOUT_MS", 60_000),
+    trustProxy: trustProxyFrom(env),
   };
 }

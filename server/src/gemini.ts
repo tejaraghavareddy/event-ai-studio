@@ -25,11 +25,30 @@ export interface GenerateResult {
 
 export type GeminiGenerator = (args: GenerateArgs) => Promise<GenerateResult>;
 
+export interface ModelCallArgs {
+  model: string;
+  prompt: string;
+}
+
+export interface ModelCallResult {
+  text?: string | null;
+}
+
+/**
+ * The model round-trip itself. Injectable so tests can exercise the timeout,
+ * empty-response and upstream-failure paths without any network access.
+ */
+export type ModelCall = (
+  args: ModelCallArgs,
+) => Promise<ModelCallResult>;
+
 export interface GeminiOptions {
   apiKey: string;
   /** Explicit model id from `GEMINI_MODEL`; empty means "discover". */
   model?: string;
   timeoutMs: number;
+  /** Test seam — defaults to the Gemini SDK call. */
+  callModel?: ModelCall;
 }
 
 /** Last-resort model, only used when discovery itself fails. */
@@ -119,19 +138,24 @@ export function createGeminiGenerator(options: GeminiOptions): GeminiGenerator {
     return discovery;
   }
 
+  const callModel: ModelCall =
+    options.callModel ??
+    (({ model, prompt }) =>
+      client.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          temperature: 0.65,
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json",
+        },
+      }));
+
   return async ({ prompt }): Promise<GenerateResult> => {
     const model = await resolveModel();
 
-    const request = client.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.65,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      },
-    });
+    const request = callModel({ model, prompt });
 
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {

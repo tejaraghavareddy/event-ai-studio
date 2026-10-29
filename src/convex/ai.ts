@@ -1,8 +1,17 @@
 "use node";
 
 import { GoogleGenAI } from "@google/genai";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  AI_LIST_LIMITS,
+  AI_NUMBER_LIMITS,
+  AI_TEXT_LIMITS,
+  clampList,
+  clampNumber,
+  clampText,
+} from "../lib/ai/contextLimits";
 
 /**
  * Server-side Gemini endpoint.
@@ -11,6 +20,14 @@ import { v } from "convex/values";
  * environment (`GEMINI_API_KEY`) and is only ever read here. The client calls
  * `generate` and receives plain JSON text, which it validates with zod before
  * anything touches application state.
+ *
+ * Two guards protect the owner's Gemini quota and prompt budget:
+ *   1. only a signed-in user may call it (every UI entry point sits behind
+ *      RequireAuth, so this never blocks a legitimate user);
+ *   2. every field is clamped to the same bounds the Express backend enforces
+ *      with zod, so a hand-rolled caller cannot inject unbounded text.
+ * Model output is still untrusted: it is parsed and validated on the client
+ * and never applied without the user reviewing it.
  */
 
 export type PlanKind =
@@ -91,9 +108,17 @@ export const generate = action({
     season: v.optional(v.string()),
   },
   handler: async (
-    _ctx,
+    ctx,
     args,
   ): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return {
+        ok: false,
+        error: "Sign in to use AI generation.",
+      };
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return {
@@ -117,31 +142,63 @@ export const generate = action({
       ? (args.kind as PlanKind)
       : "plan";
 
+    // Clamp every interpolated field before it enters the prompt.
+    const context = {
+      eventName: clampText(args.eventName, AI_TEXT_LIMITS.eventName),
+      eventType: clampText(args.eventType, AI_TEXT_LIMITS.eventType),
+      eventDate: clampText(args.eventDate, AI_TEXT_LIMITS.eventDate),
+      location: clampText(args.location, AI_TEXT_LIMITS.location),
+      guestCount: clampNumber(
+        args.guestCount,
+        AI_NUMBER_LIMITS.guestCount,
+        0,
+      ),
+      totalBudget: clampNumber(
+        args.totalBudget,
+        AI_NUMBER_LIMITS.totalBudget,
+        0,
+      ),
+      currency: clampText(args.currency, AI_TEXT_LIMITS.currency) ?? "INR",
+      preferences: clampText(args.preferences, AI_TEXT_LIMITS.preferences),
+      existingCategories: clampList(
+        args.existingCategories,
+        AI_LIST_LIMITS.categories.maxItems,
+        AI_LIST_LIMITS.categories.maxLength,
+      ),
+      notes: clampText(args.notes, AI_TEXT_LIMITS.notes),
+      vendorCategory: clampText(
+        args.vendorCategory,
+        AI_TEXT_LIMITS.vendorCategory,
+      ),
+      ideaCategory: clampText(args.ideaCategory, AI_TEXT_LIMITS.ideaCategory),
+      season: clampText(args.season, AI_TEXT_LIMITS.season),
+    };
+
     const prompt = [
       "Event context:",
-      `- Name: ${args.eventName}`,
-      `- Type: ${args.eventType}`,
-      `- Date: ${args.eventDate}`,
-      `- Location: ${args.location || "To be confirmed"}`,
-      `- Guest count: ${args.guestCount}`,
-      `- Total budget: ${args.totalBudget} ${args.currency}`,
-      `- Host preferences: ${args.preferences?.trim() || "None stated"}`,
-      args.season?.trim() ? `- Season: ${args.season.trim()}` : null,
-      args.existingCategories?.length
-        ? `- Budget categories already in use: ${args.existingCategories.join(", ")}`
+      `- Name: ${context.eventName}`,
+      `- Type: ${context.eventType}`,
+      `- Date: ${context.eventDate}`,
+      `- Location: ${context.location || "To be confirmed"}`,
+      `- Guest count: ${context.guestCount}`,
+      `- Total budget: ${context.totalBudget} ${context.currency}`,
+      `- Host preferences: ${context.preferences || "None stated"}`,
+      context.season ? `- Season: ${context.season}` : null,
+      context.existingCategories?.length
+        ? `- Budget categories already in use: ${context.existingCategories.join(", ")}`
         : null,
-      args.vendorCategory?.trim()
-        ? `- Vendor category for this inquiry: ${args.vendorCategory.trim()}`
+      context.vendorCategory
+        ? `- Vendor category for this inquiry: ${context.vendorCategory}`
         : null,
-      args.ideaCategory?.trim()
-        ? `- Creative focus category for this request: ${args.ideaCategory.trim()}`
+      context.ideaCategory
+        ? `- Creative focus category for this request: ${context.ideaCategory}`
         : null,
-      args.notes?.trim() ? `- Extra direction from the planner: ${args.notes.trim()}` : null,
+      context.notes ? `- Extra direction from the planner: ${context.notes}` : null,
       "",
       `Task: ${schemaForKind(kind, {
-        guestCount: args.guestCount,
-        vendorCategory: args.vendorCategory,
-        ideaCategory: args.ideaCategory,
+        guestCount: context.guestCount,
+        vendorCategory: context.vendorCategory,
+        ideaCategory: context.ideaCategory,
       })}`,
     ]
       .filter((line): line is string => line !== null)

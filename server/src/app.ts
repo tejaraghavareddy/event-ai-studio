@@ -43,6 +43,25 @@ export function createApp(deps: AppDependencies): express.Express {
 
   app.disable("x-powered-by");
 
+  // Only trust forwarded headers when explicitly configured (TRUST_PROXY),
+  // so the rate-limit key cannot be spoofed by a direct client.
+  app.set("trust proxy", config.trustProxy);
+
+  // Baseline hardening for a JSON-only API: never sniff content types, never
+  // render as a document (frame-ancestors/X-Frame-Options), never leak the
+  // referrer, and never let intermediaries cache generated planning data.
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    );
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
   const limiter = createRateLimiter({ ...config.rateLimit, now: deps.now });
 
   app.use(

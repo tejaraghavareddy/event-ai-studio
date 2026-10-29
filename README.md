@@ -51,6 +51,32 @@ Malformed model output, empty results, upstream failures, a missing key and
 oversized bodies all return real error codes — a failed call is never dressed
 up as a success.
 
+### Hardening
+
+- **Headers on every response** — `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a
+  `default-src 'none'; frame-ancestors 'none'` CSP and `Cache-Control:
+  no-store` (planning data is per-request, never cacheable by intermediaries).
+  `x-powered-by` is disabled.
+- **Rate limiting** is keyed on the socket address. `TRUST_PROXY` is **off** by
+  default; set it to `true` or a hop count only when the server runs behind a
+  reverse proxy you control, otherwise a client could forge `X-Forwarded-For`
+  to mint fresh rate-limit buckets. Never enable it on a directly exposed
+  server.
+- **Prompt injection** is treated as possible: user text is length-capped on
+  both transports, model output is re-validated against typed schemas on the
+  server *and* on the client, and nothing is written to the plan until the user
+  reviews and applies it — model output can never bypass a UI decision.
+- **The Convex fallback action** (`src/convex/ai.ts`) refuses callers that are
+  not signed in, so an open deployment URL cannot burn the owner's Gemini
+  quota, and it clamps every field with `src/lib/ai/contextLimits.ts` before
+  anything enters a prompt.
+- **Dependencies** are checked with `bun audit`; advisories are upgraded in
+  range as part of maintenance. Known remaining: one transitive `zod@3.x`
+  advisory pulled in by the platform package `@vly-ai/integrations` (its range
+  is `^3.22.4`, and no patched 3.x exists — the fix is `zod@4.6.6`, which this
+  app's own code uses). It is not on any request path of this product.
+
 ### Getting an API key
 
 1. Open Google AI Studio: <https://aistudio.google.com/apikey>
@@ -101,6 +127,7 @@ Template file: `env.example` (placeholders only — copy it to `.env`).
 | Express (`server/`) | `AI_BODY_LIMIT` | no | Max request body (default `32kb`) |
 | Express (`server/`) | `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_MS` | no | Rate limit (default `20` / `60000`) |
 | Express (`server/`) | `GEMINI_TIMEOUT_MS` | no | Per-request Gemini timeout (default `60000`) |
+| Express (`server/`) | `TRUST_PROXY` | no | `true`/hop count to trust `X-Forwarded-For` behind a reverse proxy (default off — see Hardening) |
 | Vite (client) | `VITE_AI_API_BASE` | no | AI base URL (default `http://localhost:8787/api/gemini`) |
 | Vite (client) | `VITE_CONVEX_URL` | yes | Convex deployment URL |
 | Convex (fallback) | `GEMINI_API_KEY` / `GEMINI_MODEL` | no | Used only by the fallback action: `bunx convex env set GEMINI_API_KEY "your-key-here"` |
@@ -175,7 +202,8 @@ src/
 │   ├── format.ts             # money / date / time formatting (tabular figures)
 │   ├── ai/
 │   │   ├── transport.ts      # HTTP client for the Express backend + envelope
-│   │   └── client.ts         # zod schemas, normalisers, converters, apply
+│   │   ├── client.ts         # zod schemas, normalisers, converters, apply
+│   │   └── contextLimits.ts  # input bounds for the Convex fallback action
 │   └── data/
 │       ├── seed.ts           # three realistic demo events
 │       ├── store.ts          # localStorage repository + actions + hooks
@@ -215,6 +243,13 @@ Warm editorial luxury, defined once in `src/index.css`:
 - Plus Jakarta Sans (headings) + DM Sans (body)
 - Restrained shadows, thin borders, tight radii, tabular figures for every
   financial column
+
+Accessibility: every form control has a real `<label>` or an `aria-label`,
+validation errors are announced with `role="alert"` and tied to their field
+(`aria-invalid` + `aria-describedby`), status is never conveyed by colour
+alone, dialogs rely on Radix focus traps and Escape, focus rings are global,
+and `MotionConfig reducedMotion="user"` honours `prefers-reduced-motion` for
+every Framer Motion animation.
 
 ## Scripts
 

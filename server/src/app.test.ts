@@ -16,6 +16,7 @@ function makeConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
     bodyLimit: "8kb",
     rateLimit: { windowMs: 60_000, max: 50 },
     requestTimeoutMs: 5_000,
+    trustProxy: false,
     ...overrides,
   };
 }
@@ -357,6 +358,41 @@ describe("POST /api/gemini/*", () => {
       expect(response.status).toBe(404);
       expect(json.ok).toBe(false);
       expect(json.error?.code).toBe("VALIDATION_ERROR");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("sets hardening headers on every response", async () => {
+    const server = await startServer(makeConfig(), echoGenerator);
+    try {
+      const ok = await post(server.baseUrl, "/api/gemini/budget", {
+        ...validBody,
+        kind: "budget",
+      });
+      expect(ok.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(ok.headers.get("x-frame-options")).toBe("DENY");
+      expect(ok.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(ok.headers.get("cache-control")).toBe("no-store");
+      expect(ok.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+      expect(ok.headers.get("x-powered-by")).toBeNull();
+
+      const missing = await post(server.baseUrl, "/api/gemini/nope", {});
+      expect(missing.headers.get("x-content-type-options")).toBe("nosniff");
+
+      const rateLimited = await startServer(
+        makeConfig({ rateLimit: { windowMs: 60_000, max: 1 } }),
+        echoGenerator,
+      );
+      try {
+        const body = { ...validBody, kind: "budget" };
+        await post(rateLimited.baseUrl, "/api/gemini/budget", body);
+        const blocked = await post(rateLimited.baseUrl, "/api/gemini/budget", body);
+        expect(blocked.status).toBe(429);
+        expect(blocked.headers.get("x-content-type-options")).toBe("nosniff");
+      } finally {
+        await rateLimited.close();
+      }
     } finally {
       await server.close();
     }

@@ -1,12 +1,19 @@
-import '@vly-ai/integrations';
+import "@vly-ai/integrations";
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
+import { MotionConfig } from "framer-motion";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router";
 import "./index.css";
 
 // Lazy load route components for better code splitting
@@ -88,8 +95,6 @@ class RootErrorBoundary extends React.Component<
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
-
-
 function RouteSyncer() {
   const location = useLocation();
   useEffect(() => {
@@ -113,48 +118,53 @@ function RouteSyncer() {
   return null;
 }
 
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RootErrorBoundary>
-      <ToolbarErrorBoundary>
-        <VlyToolbar />
-      </ToolbarErrorBoundary>
-      <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
-          <RouteSyncer />
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth
-                    title="Sign in to open your studio"
-                    description="Your events, budgets, run of shows and vendor records live behind sign-in."
-                  >
-                    <StudioLayout />
-                  </RequireAuth>
-                }
-              >
-                <Route index element={<Navigate to="/dashboard/overview" replace />} />
-                <Route path="overview" element={<OverviewPage />} />
-                <Route path="budget" element={<BudgetPage />} />
-                <Route path="timeline" element={<TimelinePage />} />
-                <Route path="vendors" element={<VendorsPage />} />
-                <Route path="studio" element={<CreativePage />} />
-                <Route path="settings" element={<SettingsPage />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-          <Toaster />
-        </BrowserRouter>
-      </ConvexAuthProvider>
-    </RootErrorBoundary>
+    {/* honours prefers-reduced-motion for every framer-motion animation */}
+    <MotionConfig reducedMotion="user">
+      <RootErrorBoundary>
+        <ToolbarErrorBoundary>
+          <VlyToolbar />
+        </ToolbarErrorBoundary>
+        <ConvexAuthProvider client={convex}>
+          <BrowserRouter>
+            <RouteSyncer />
+            <Suspense fallback={<RouteLoading />}>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route
+                  path="/auth"
+                  element={<AuthPage redirectAfterAuth="/dashboard" />}
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <RequireAuth
+                      title="Sign in to open your studio"
+                      description="Your events, budgets, run of shows and vendor records live behind sign-in."
+                    >
+                      <StudioLayout />
+                    </RequireAuth>
+                  }
+                >
+                  <Route
+                    index
+                    element={<Navigate to="/dashboard/overview" replace />}
+                  />
+                  <Route path="overview" element={<OverviewPage />} />
+                  <Route path="budget" element={<BudgetPage />} />
+                  <Route path="timeline" element={<TimelinePage />} />
+                  <Route path="vendors" element={<VendorsPage />} />
+                  <Route path="studio" element={<CreativePage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+            <Toaster />
+          </BrowserRouter>
+        </ConvexAuthProvider>
+      </RootErrorBoundary>
+    </MotionConfig>
   </StrictMode>,
 );

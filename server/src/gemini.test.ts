@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "./errors";
-import { classifyGeminiError } from "./gemini";
+import { classifyGeminiError, createGeminiGenerator } from "./gemini";
 
 describe("classifyGeminiError", () => {
   it("reports rejected credentials as a server misconfiguration", () => {
@@ -40,5 +40,56 @@ describe("classifyGeminiError", () => {
 
     const long = classifyGeminiError(new Error("x".repeat(2_000)));
     expect(long.message.length).toBeLessThanOrEqual(430);
+  });
+});
+
+describe("createGeminiGenerator", () => {
+  /** Explicit model id keeps the test fully offline (no model discovery). */
+  function generatorWith(
+    callModel: (args: { model: string; prompt: string }) => Promise<{ text?: string | null }>,
+    timeoutMs = 5_000,
+  ) {
+    return createGeminiGenerator({
+      apiKey: "test-key",
+      model: "test-model",
+      timeoutMs,
+      callModel,
+    });
+  }
+
+  it("returns the model text and the model actually used", async () => {
+    const generate = generatorWith(async () => ({ text: '{"summary":"ok"}' }));
+    const result = await generate({ kind: "plan", prompt: "go" });
+    expect(result).toEqual({ text: '{"summary":"ok"}', model: "test-model" });
+  });
+
+  it("times out with a TIMEOUT error instead of hanging forever", async () => {
+    const generate = generatorWith(
+      () => new Promise<{ text?: string | null }>(() => {}),
+      25,
+    );
+    const error = await generate({ kind: "plan", prompt: "go" }).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("TIMEOUT");
+    expect(error.status).toBe(504);
+    expect(error.message).toContain("GEMINI_TIMEOUT_MS");
+  });
+
+  it("reports an empty or safety-filtered response as BAD_MODEL_OUTPUT", async () => {
+    const generate = generatorWith(async () => ({ text: "   " }));
+    const error = await generate({ kind: "plan", prompt: "go" }).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("BAD_MODEL_OUTPUT");
+    expect(error.status).toBe(502);
+  });
+
+  it("passes SDK failures through the error classifier", async () => {
+    const generate = generatorWith(async () => {
+      throw new Error("429 Resource has been exhausted (e.g. check quota)");
+    });
+    const error = await generate({ kind: "budget", prompt: "go" }).catch((e) => e);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("UPSTREAM_ERROR");
+    expect(error.status).toBe(502);
   });
 });

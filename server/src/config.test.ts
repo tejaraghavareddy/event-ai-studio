@@ -11,6 +11,19 @@ describe("loadConfig", () => {
     expect(config.bodyLimit).toBe("32kb");
     expect(config.rateLimit).toEqual({ windowMs: 60_000, max: 20 });
     expect(config.requestTimeoutMs).toBe(60_000);
+    // Proxy trust is opt-in: a directly exposed server must key the rate
+    // limiter on the socket address so X-Forwarded-For cannot be forged.
+    expect(config.trustProxy).toBe(false);
+  });
+
+  it("parses TRUST_PROXY as off, true, or a hop count", () => {
+    expect(loadConfig({ TRUST_PROXY: "true" }).trustProxy).toBe(true);
+    expect(loadConfig({ TRUST_PROXY: " 2 " }).trustProxy).toBe(2);
+    expect(loadConfig({ TRUST_PROXY: "on" }).trustProxy).toBe(true);
+    // Anything unrecognised stays off rather than defaulting to trust-all.
+    expect(loadConfig({ TRUST_PROXY: "yes" }).trustProxy).toBe(false);
+    expect(loadConfig({ TRUST_PROXY: "-1" }).trustProxy).toBe(false);
+    expect(loadConfig({ TRUST_PROXY: "false" }).trustProxy).toBe(false);
   });
 
   it("reads credentials and model from the environment only", () => {
